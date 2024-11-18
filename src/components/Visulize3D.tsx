@@ -62,7 +62,7 @@ export const Animation2 = ({width, height, speed}: {width: number, height: numbe
   let initializedFlagRef = useRef(false);
 
   useEffect(() => {
-    if (!mountRef.current) return;
+    if (!mountRef.current) {return};
 
     // Set up renderer, camera aspect ratio, and OrbitControls
     if (!initializedFlagRef.current) {
