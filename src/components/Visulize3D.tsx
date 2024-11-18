@@ -88,6 +88,7 @@ export const Animation2 = ({width, height, speed}: {width: number, height: numbe
          /*React's useEffect cleanup function is accessing mountRef.current directly. This is risky because the value of mountRef.current might change during re-renders, leading to potential bugs.*/ 
         mountedNode.removeChild(renderer.domElement);
         renderer.dispose();
+        initializedFlagRef.current = false;
       };
     }
   }, []);
