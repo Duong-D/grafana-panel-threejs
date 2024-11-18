@@ -91,6 +91,7 @@ export const Animation2 = ({width, height, speed}: {width: number, height: numbe
         initializedFlagRef.current = false;
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
