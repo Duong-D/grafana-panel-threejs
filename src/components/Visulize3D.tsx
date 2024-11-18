@@ -63,7 +63,7 @@ export const Animation2 = ({width, height, speed}: {width: number, height: numbe
 
   useEffect(() => {
     if (!mountRef.current) {return};
-
+    const mountedNode = mountRef.current;
     // Set up renderer, camera aspect ratio, and OrbitControls
     if (!initializedFlagRef.current) {
       camera.aspect = width / height;
@@ -72,7 +72,7 @@ export const Animation2 = ({width, height, speed}: {width: number, height: numbe
       renderer.setPixelRatio(window.devicePixelRatio);
       orbit.update();
       // Append renderer DOM element to mountRef div
-      mountRef.current.appendChild(renderer.domElement);
+      mountedNode.appendChild(renderer.domElement);
       animate(speedRef);
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === 'r' || event.key === 'R') {
@@ -85,7 +85,8 @@ export const Animation2 = ({width, height, speed}: {width: number, height: numbe
     }
     return () => {
       if (renderer) {
-        mountRef.current?.removeChild(renderer.domElement);
+         /*React's useEffect cleanup function is accessing mountRef.current directly. This is risky because the value of mountRef.current might change during re-renders, leading to potential bugs.*/ 
+        mountedNode.removeChild(renderer.domElement);
         renderer.dispose();
       };
     }
@@ -109,9 +110,3 @@ export const Animation2 = ({width, height, speed}: {width: number, height: numbe
     </div>
   );
 }
-
-
-
-
-
-
