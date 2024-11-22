@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect} from 'react';
 import { PanelProps } from '@grafana/data';
 import { SimpleOptions } from 'types';
 import { css, cx } from '@emotion/css';
@@ -8,7 +8,7 @@ import { SpeedControl } from './SpeedControl';
 import { Animation2 } from './Visulize3D';
 
 interface Props extends PanelProps<SimpleOptions> {}
-
+console.log("Start Simple Panel");
 export const getStyles = () => {
   return {
     wrapper: css`
@@ -35,10 +35,26 @@ export const getStyles = () => {
   };
 };
 
-
-export const SimplePanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id }) => {
-  const [currentSpeed, setSpeed] = useState<number>(0);
+export const SimplePanel: React.FC<Props> = ({options: { speed, ...options }, data, width, height, fieldConfig, id, onOptionsChange }) => {
+  console.log("Option speed is now: ", speed);
   const styles = useStyles2(getStyles);
+
+  // useEffect(() => {
+  //   // Sync React state back to options
+  //   options.speed = currentSpeed;
+  // }, [currentSpeed]);
+
+  // useEffect(() => {
+  //   // Sync React state back to options
+  //   setSpeed(options.speed);
+  // }, [options.speed]);
+
+  useEffect(() => {
+    console.log("Mounted");
+    return () => {
+      console.log("Unmounted");
+    };
+  }, []);
 
   if (data.series.length === 0) {
     return <PanelDataErrorView fieldConfig={fieldConfig} panelId={id} data={data} needsStringField />;
@@ -54,9 +70,11 @@ export const SimplePanel: React.FC<Props> = ({ options, data, width, height, fie
         `
       )}
     >
-      <Animation2 width={width} height={height} speed={currentSpeed}></Animation2>
-      <SpeedControl currentSpeed={currentSpeed} setSpeed={setSpeed}></SpeedControl>
-      
+      <SpeedControl 
+        onOptionsSpeedChange={(newSpeed) => onOptionsChange({ ...options, speed: newSpeed })}
+        optionsSpeed={speed ? speed : 0} >
+      </SpeedControl>
+      <Animation2 width={width} height={height} speed={speed ? speed : 0}></Animation2>
       {/* <input 
         type='number' 
         // value = {currentSpeed} 
@@ -71,6 +89,7 @@ export const SimplePanel: React.FC<Props> = ({ options, data, width, height, fie
           <div data-testid="simple-panel-series-counter">Number of series: {data.series.length}</div>
         )}
         <div>Text option value: {options.name}</div>
+        <div>Current speed is now: {speed} Deg/sec</div>
       </div>
     </div>
   );
