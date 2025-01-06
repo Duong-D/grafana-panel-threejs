@@ -31,7 +31,7 @@ class SceneManager{
 
   // Interacting with mouse
   private highlightedObject: THREE.Object3D | null = null;
-  private originalColor: THREE.Color | null = null;
+  // private originalColor: THREE.Color | null = null;
   private originalMaterialMap: Map<THREE.Object3D, Array<THREE.Material | THREE.Material[]>> = new Map();
   private popupHandler: {
     onHover: (name: string, position: {x: number, y: number}) => void, 
@@ -43,8 +43,8 @@ class SceneManager{
   private urlMap: Map<string, Object3D> = new Map();
   private modelMap: Map<Object3D, Map<string, Object3D>> = new Map();
   private namingConvention: string[] = [];
-  private nameRoot: string = "";
-  private modelRoot: Object3D | null = null;
+  // private nameRoot: string = "";
+  // private modelRoot: Object3D | null = null;
 
   setPopupHandlers(onHover: (name: string, position: {x: number, y: number}) => void, offHover: () => void){
     this.popupHandler = {onHover, offHover};
@@ -113,7 +113,7 @@ class SceneManager{
           const wholeScene = gltf.scene;
           this.scene.add(wholeScene);
           this.namingConvention = namingConvention;
-          this.nameRoot = nameRoot;
+          // this.nameRoot = nameRoot;
   
           // Calculate the bounding box of the model AFTER adding it to the scene
           const boundingBox = new THREE.Box3().setFromObject(wholeScene);
@@ -137,7 +137,7 @@ class SceneManager{
           if (model){
           // Generate the object map
           this.presettingModel(model, nameRoot);
-          this.modelRoot = model;
+          // this.modelRoot = model;
           const objectMap = this.mappingThingIdAndObject(model, nameRoot);
           console.log(objectMap)
           this.urlMap.set(path, model);
