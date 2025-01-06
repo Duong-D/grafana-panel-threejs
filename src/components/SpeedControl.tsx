@@ -2,6 +2,8 @@ import React, {useState} from "react";
 import { getStyles } from "./SimplePanel";
 import { useStyles2 } from '@grafana/ui';
 import { debounce } from "lodash";
+
+console.log("Accessing SpeedControl")
 // import { SimpleOptions } from 'types';
 /*
   This is for setting the Speed input component.
@@ -11,9 +13,10 @@ import { debounce } from "lodash";
 interface SpeedControlProps {
   onOptionsSpeedChange: (speed: number) => void; // Function to update options in Grafana
   optionsSpeed: number;                      // Speed value from Grafana options
+
 }
 
-export const SpeedControl : React.FC<SpeedControlProps> = ({
+export const SpeedControl : React.FC<SpeedControlProps> = React.memo(({
   onOptionsSpeedChange, 
   optionsSpeed, }) => {
     
@@ -62,4 +65,5 @@ export const SpeedControl : React.FC<SpeedControlProps> = ({
 
     </div>
   );
-};
+},
+);

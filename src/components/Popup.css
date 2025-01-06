@@ -1,0 +1,40 @@
+*{
+  box-sizing: border-box;
+  margin:0;
+  padding:0;
+}
+.popup-container {
+  display: none;  /* Make the container adjust to the width of its content */
+  padding: 5px 10px;     /* Padding inside the box to create a gap between text and border */
+  background: rgba(0, 188, 212, 0.3); /* Semi-transparent background */
+  border-radius: 5px;     /* Rounded corners */
+  position: absolute;     /* Positioning context for pseudo-elements */
+  color: #00bcd4;         /* Text color */
+  font-family: 'Arial', sans-serif; /* Font style */
+  font-size: 8px;        /* Font size */
+}
+
+/* Add border and shadow using ::before and ::after */
+.popup-container::before,
+.popup-container::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  border-radius: 9px;  /* Match rounded corners */
+  border: 3px solid #00bcd4; /* Border color */
+  pointer-events: none; /* Ensure pseudo-elements don't interfere with mouse events */
+}
+
+/* Shadow effect to add the glow around the box */
+.popup-container::after {
+  box-shadow: 0 0 15px rgba(0, 188, 212, 0.7); /* Glowing shadow effect */
+}
+
+
+
+.popup-container.visible {
+  display: block;
+}

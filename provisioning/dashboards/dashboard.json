@@ -18,7 +18,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -28,13 +27,14 @@
         "uid": "grafana"
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 12,
+        "w": 18,
         "x": 0,
         "y": 0
       },
       "id": 1,
       "options": {
+        "name": "Default value of text input option",
         "seriesCountSize": "sm",
         "showSeriesCount": false,
         "text": "Default value of text input option"
@@ -47,37 +47,6 @@
           },
           "queryType": "randomWalk",
           "refId": "A"
-        }
-      ],
-      "title": "Panel Title",
-      "type": "dinh-threejsdemo-panel"
-    },
-    {
-      "datasource": {
-        "type": "grafana-testdata-datasource",
-        "uid": "trlxrdZVk"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "id": 2,
-      "options": {
-        "seriesCountSize": "sm",
-        "showSeriesCount": false,
-        "text": "Default value of text input option"
-      },
-      "targets": [
-        {
-          "alias": "",
-          "datasource": {
-            "type": "grafana-testdata-datasource",
-            "uid": "db84e60d-b92a-4089-82cb-34842fb1754b"
-          },
-          "refId": "A",
-          "scenarioId": "no_data_points"
         }
       ],
       "title": "Panel Title",
@@ -98,6 +67,6 @@
   "timezone": "",
   "title": "Provisioned threejsdemo dashboard",
   "uid": "a538aeff-5a8a-42a5-901c-938d896fdd6f",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

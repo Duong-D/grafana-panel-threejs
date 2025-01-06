@@ -1,11 +1,16 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useCallback, useState} from 'react';
 import { PanelProps } from '@grafana/data';
 import { SimpleOptions } from 'types';
 import { css, cx } from '@emotion/css';
 import { useStyles2, /*useTheme2*/ } from '@grafana/ui';
 import { PanelDataErrorView } from '@grafana/runtime';
 import { SpeedControl } from './SpeedControl';
-import { Animation2 } from './Visulize3D';
+import { Visulize3D } from './Visulize3D';
+import {SceneManager} from './SceneManager';
+import { Object3D } from 'three';
+import { LoadingScreen } from './LoadingScreen';
+import { Popup } from './Popup';
+
 
 interface Props extends PanelProps<SimpleOptions> {}
 console.log("Start Simple Panel");
@@ -35,149 +40,165 @@ export const getStyles = () => {
   };
 };
 
-export const SimplePanel: React.FC<Props> = ({options: { speed, ...options }, data, width, height, fieldConfig, id, onOptionsChange }) => {
-  console.log("Option speed is now: ", speed);
+
+const modelPath = "public/plugins/dinh-threejsdemo-panel/img/TBM_Model6.glb";
+const nameRoot = "ASM_TBM";
+const namingConvention = ["ASM", "CMP"];
+
+const sceneManager = SceneManager.getInstance();
+sceneManager.addRaycastCallback((intersects) => {
+  console.log("Here")
+  let clickedObject = intersects[0]?.object;
+  
+    // // Traverse up to find the grouping level (e.g., Group or Assembly)
+    // while (clickedObject.parent && clickedObject.parent.name !== nameRoot) {
+    //   clickedObject = clickedObject.parent;
+    // }
+  console.log("Clicked Grouping: ", clickedObject);
+  console.log("Group Name: ", clickedObject.name);
+
+});
+
+export const SimplePanel: React.FC<Props> = ({options, data, width, height, fieldConfig, id, onOptionsChange }) => {
   const styles = useStyles2(getStyles);
+  const [loading, setLoading] = useState(true);
+  const [model, setModel] = useState<Object3D | null>(null);
+  const [objectMap, setObjectMap] = useState<Map<string, Object3D> | null>(null);
+  const [componentMap, setComponentMap] = useState<Map<string, Object3D> | null>(null);
+  const [progress, setProgress] = useState(0);
 
-  // useEffect(() => {
-  //   // Sync React state back to options
-  //   options.speed = currentSpeed;
-  // }, [currentSpeed]);
+  const [popupInfo, setPopupInfo] = useState<{name: string; position: {x: number, y: number}; visible: boolean }>({
+    name: '',
+    position: {x: 0, y: 0},
+    visible: false,
+  });
+  
+  const handleMouseHover = (name: string, position: {x: number, y: number})=>{
+    setPopupInfo({name, position, visible: true});
+  }
 
-  // useEffect(() => {
-  //   // Sync React state back to options
-  //   setSpeed(options.speed);
-  // }, [options.speed]);
+  const handleMouseLeave = ()=>{
+    setPopupInfo((prev)=>({...prev, visible: false}))
+  }
 
+  sceneManager.setPopupHandlers(handleMouseHover, handleMouseLeave)
+
+  const handleOptionsSpeedChange = useCallback(
+    (newSpeed: number) => onOptionsChange({ ...options, speed: newSpeed }),
+    [onOptionsChange, options]
+  );
+
+
+
+  // const { series } = data; // series is the top-level array
+
+  // if (!series.length) {
+  //   console.warn("No data found!");
+  //   return <div>No data available</div>;
+  // }
+
+  // // Extract the first series
+  // const firstSeries = series[0];
+
+
+  // // Extract fields
+  // const timeField = firstSeries.fields.find((field) => field.name === "time");
+  // const valueField = firstSeries.fields.find((field) => field.name === "hello");
+
+  // // Get arrays of data
+  // const times = timeField?.values.toArray() || [];
+  // const values = valueField?.values.toArray() || [];
+
+  // const average =
+  // values.length > 0
+  //   ? values.reduce((sum, value) => sum + value, 0) / values.length
+  //   : 0;
+
+  // // console.log("Timestamps:", times);
+  // // console.log("Random Walk Values:", values);
+  // console.log("Average Values:", average);
+
+  useEffect(()=>{
+    
+    console.log("Importing 3D");
+    console.log(data)
+    
+    const importModel = async ()=>{
+      try{
+        const {model, objectMap} = await sceneManager.loadModel(
+          modelPath, 
+          nameRoot, 
+          namingConvention,
+          (progress) =>  {
+            setProgress(Math.round(progress))
+          }
+        );
+        setModel(model);
+        setObjectMap(objectMap);
+        setComponentMap(componentMap)
+        console.log(objectMap);
+        console.log(componentMap);
+        setLoading(false);
+      }
+      catch (error) {
+        console.error('Error loading model:', error);
+      }
+    }
+
+    importModel();
+  }, []);
+  
   useEffect(() => {
     console.log("Mounted");
     return () => {
       console.log("Unmounted");
-    };
+    }; 
   }, []);
 
   if (data.series.length === 0) {
     return <PanelDataErrorView fieldConfig={fieldConfig} panelId={id} data={data} needsStringField />;
   }
-  // return <div ref={mountRef} className={cx(styles.wrapper)} />;
-  return (
-    <div
-      className={cx(
-        styles.wrapper,
-        css`
-          width: ${width}px;
-          height: ${height}px;
-        `
-      )}
-    >
-      <SpeedControl 
-        onOptionsSpeedChange={(newSpeed) => onOptionsChange({ ...options, speed: newSpeed })}
-        optionsSpeed={speed ? speed : 0} >
-      </SpeedControl>
-      <Animation2 width={width} height={height} speed={speed ? speed : 0}></Animation2>
-      {/* <input 
-        type='number' 
-        // value = {currentSpeed} 
-        onChange={e => 
-          setSpeed(Number(e.target.value))
-          } />
-      <div className={styles.textBox2}> 
-        <div> Speed value (ms): {currentSpeed}</div>
-      </div> */}
-      <div className={styles.textBox1}>
-        {options.showSeriesCount && (
-          <div data-testid="simple-panel-series-counter">Number of series: {data.series.length}</div>
-        )}
-        <div>Text option value: {options.name}</div>
-        <div>Current speed is now: {speed} Deg/sec</div>
-      </div>
-    </div>
-  );
+return (
+  <div
+    className={cx(
+      styles.wrapper,
+      css`
+        width: ${width}px;
+        height: ${height}px;
+      `
+    )}
+  >
+    {loading ? (
+      <LoadingScreen progress={progress} />
+    ) : (
+      <>
+        <SpeedControl
+          onOptionsSpeedChange={handleOptionsSpeedChange}
+          optionsSpeed={options.speed || 0}
+        />
+        <Visulize3D
+          width={width}
+          height={height}
+          speed={options.speed || 0}
+          model={model!}
+          objectMap={objectMap!}
+        />
+        <div className={styles.textBox1}>
+          {options.showSeriesCount && (
+            <div data-testid="simple-panel-series-counter">
+              Number of series: {data.series.length}
+            </div>
+          )}
+          <div>Text option value: {options.name}</div>
+          <div>Current speed is now: {options.speed} Deg/sec</div>
+        </div>
+      </>
+    )}
+      <Popup
+      name={popupInfo.name}
+      position={popupInfo.position}
+      visible={popupInfo.visible}
+    />
+  </div>
+);
 };
-
-// import React, { useEffect, useRef } from 'react';
-// import { PanelProps } from '@grafana/data';
-// import { SimpleOptions } from 'types';
-// import { css, cx } from '@emotion/css';
-// import * as THREE from 'three';
-// import { OrbitControls} from "three/examples/jsm/controls/OrbitControls.js"
-
-// interface Props extends PanelProps<SimpleOptions> {}
-
-// const getStyles = () => {
-//   return {
-//     wrapper: css`
-//       font-family: Open Sans;
-//       position: relative;
-//       width: 100%;
-//       height: 100%;
-//     `,
-//   };
-// };
-
-// export const SimplePanel: React.FC<Props> = ({ width, height }) => {
-//   const styles = getStyles();
-//   const mountRef = useRef<HTMLDivElement | null>(null);
-
-//   useEffect(() => {
-//     if (!mountRef.current) return;
-
-//     // Create the Three.js scene, camera, and renderer
-//     const scene = new THREE.Scene();
-//     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-//     const renderer = new THREE.WebGLRenderer();
-//     renderer.setSize(width, height);
-
-//     // Append the renderer's DOM element to the mount ref
-//     mountRef.current.appendChild(renderer.domElement);
-//     const orbit = new OrbitControls(camera, renderer.domElement);
-      
-//     orbit.update();
-//     // Create a sphere geometry and a basic material and combine them into a mesh
-//     const boxGeo = new THREE.BoxGeometry();
-//     const boxMat = new THREE.MeshBasicMaterial({
-//               color: 0x00ff00
-//             });
-//     const randomCube = new THREE.Mesh(boxGeo, boxMat);
-
-//     const geometry = new THREE.SphereGeometry(1, 32, 32); // radius of 1, with 32 segments
-//     const material = new THREE.MeshBasicMaterial({ color: 0x0077ff });
-//     const sphere = new THREE.Mesh(geometry, material);
-    
-
-//     // Add the sphere to the scene
-//     sphere.add(randomCube);
-//     scene.add(sphere);
-    
-//     randomCube.position.set(2, 0 , 2);
-//     // Position the camera
-//     camera.position.z = 5;
-
-//     // Render loop
-//     const animate = () => {
-//       requestAnimationFrame(animate);
-//       // sphere.position.x += 0.001;
-//       // let positionX = sphere.position.x;
-//       // Rotate the sphere for a little animation
-//       // console.log("Position x: ", positionX)
-//       randomCube.rotation.x += 0.01;
-//       randomCube.rotation.y += 0.01;
-//       // sphere.rotation.x += 0.01;
-//       sphere.rotation.y += 0.01;
-
-//       // Render the scene with the camera
-//       renderer.render(scene, camera);
-//     };
-//     animate();
-
-//     // Clean up on unmount
-//     return () => {
-//       if (mountRef.current) {
-//         mountRef.current.removeChild(renderer.domElement);
-//       }
-//       renderer.dispose();
-//     };
-//   }, [width, height]);
-
-//   return <div ref={mountRef} className={cx(styles.wrapper)} />;
-// };
