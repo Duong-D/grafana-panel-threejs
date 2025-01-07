@@ -40,8 +40,7 @@ export const getStyles = () => {
   };
 };
 
-
-const modelPath = "public/plugins/dinh-threejsdemo-panel/img/TBM_Model6.glb";
+const modelPath = "https://duong-d.github.io/tbm-model-hosting/TBM_Model6.glb";
 const nameRoot = "ASM_TBM";
 const namingConvention = ["ASM", "CMP"];
 
