@@ -111,41 +111,40 @@ class SceneManager{
         path,
         (gltf) => {
           const wholeScene = gltf.scene;
-          this.scene.add(wholeScene);
-          this.namingConvention = namingConvention;
-          // this.nameRoot = nameRoot;
-  
-          // Calculate the bounding box of the model AFTER adding it to the scene
-          const boundingBox = new THREE.Box3().setFromObject(wholeScene);
-          if (!boundingBox.isEmpty()) {
-            // Calculate the center of the bounding box
-            const boundingCenter = new THREE.Vector3();
-            boundingBox.getCenter(boundingCenter);
-            this.camera.position.set(
-              boundingCenter.x + 15,
-              boundingCenter.y + 25,
-              boundingCenter.z + 25
-            );
-  
-            this.controls.target.copy(boundingCenter); // Set the OrbitControls target to the bounding box center
-            this.controls.update(); // Update the controls to apply the new target
-            
-          } else {
-            console.warn("Bounding box is empty, skipping camera adjustment.");
-          }
           const model = wholeScene.getObjectByName(nameRoot);
           if (model){
-          // Generate the object map
-          this.presettingModel(model, nameRoot);
-          // this.modelRoot = model;
-          const objectMap = this.mappingThingIdAndObject(model, nameRoot);
-          console.log(objectMap)
-          this.urlMap.set(path, model);
-          this.modelMap.set(model, objectMap);
-  
-          resolve({ model, objectMap});
-          } 
-          else {
+            this.scene.add(wholeScene);
+            this.namingConvention = namingConvention;
+            // this.nameRoot = nameRoot;
+    
+            // Calculate the bounding box of the model AFTER adding it to the scene
+            const boundingBox = new THREE.Box3().setFromObject(wholeScene);
+
+            if (!boundingBox.isEmpty()) {
+              // Calculate the center of the bounding box
+              const boundingCenter = new THREE.Vector3();
+              boundingBox.getCenter(boundingCenter);
+              this.camera.position.set(
+                boundingCenter.x + 15,
+                boundingCenter.y + 25,
+                boundingCenter.z + 25
+              );
+    
+              this.controls.target.copy(boundingCenter); // Set the OrbitControls target to the bounding box center
+              this.controls.update(); // Update the controls to apply the new target
+        
+            } else {
+              console.warn("Bounding box is empty, skipping camera adjustment.");
+            }
+            // Generate the object map
+            this.presettingModel(model, nameRoot);
+            // this.modelRoot = model;
+            const objectMap = this.mappingThingIdAndObject(model, nameRoot);
+            console.log(objectMap)
+            this.urlMap.set(path, model);
+            this.modelMap.set(model, objectMap);
+            resolve({ model, objectMap});
+          } else {
             throw new Error(`Model with name "${nameRoot}" not found in the scene.`);
           }
         },

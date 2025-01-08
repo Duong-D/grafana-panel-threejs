@@ -5,10 +5,22 @@ import { SimplePanel } from './components/SimplePanel';
 export const plugin = new PanelPlugin<SimpleOptions>(SimplePanel).setPanelOptions((builder) => {
   return builder
     .addTextInput({
-      path: 'name',
-      name: 'Simple text option',
-      description: 'Description of panel option',
-      defaultValue: 'Default value of text input option',
+      path: 'modelPath',
+      name: "Model's path",
+      description: 'Please enter the URL, link, or file path to 3D model file. Ensure it is glb file',
+      defaultValue: 'https://duong-d.github.io/tbm-model-hosting/TBM_Model6.glb',
+    })
+    .addTextInput({
+      path: 'modelRootName',
+      name: "Root name of the model",
+      description: 'Please enter the name',
+      defaultValue: 'ASM_',
+    })
+    .addTextInput({
+      path: 'namingConvention',
+      name: "Prefix",
+      description: 'Please enter the prefix for assembly and part',
+      defaultValue: 'ASM, CMP',
     })
     .addBooleanSwitch({
       path: 'showSeriesCount',

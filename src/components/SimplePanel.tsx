@@ -10,6 +10,7 @@ import {SceneManager} from './SceneManager';
 import { Object3D } from 'three';
 import { LoadingScreen } from './LoadingScreen';
 import { Popup } from './Popup';
+import './ErrorScreen.css'; 
 
 
 interface Props extends PanelProps<SimpleOptions> {}
@@ -40,10 +41,6 @@ export const getStyles = () => {
   };
 };
 
-const modelPath = "https://duong-d.github.io/tbm-model-hosting/TBM_Model6.glb";
-const nameRoot = "ASM_TBM";
-const namingConvention = ["ASM", "CMP"];
-
 const sceneManager = SceneManager.getInstance();
 sceneManager.addRaycastCallback((intersects) => {
   console.log("Here")
@@ -65,6 +62,8 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
   const [objectMap, setObjectMap] = useState<Map<string, Object3D> | null>(null);
   const [componentMap, setComponentMap] = useState<Map<string, Object3D> | null>(null);
   const [progress, setProgress] = useState(0);
+
+  const [error, setError] = useState<string | null>(null);
 
   const [popupInfo, setPopupInfo] = useState<{name: string; position: {x: number, y: number}; visible: boolean }>({
     name: '',
@@ -117,16 +116,17 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
   // // console.log("Random Walk Values:", values);
   // console.log("Average Values:", average);
 
+
   useEffect(()=>{
     
     console.log("Importing 3D");
     console.log(data)
-    
+    const namingConvention = options.namingConvention.split(',').map(item => item.trim());
     const importModel = async ()=>{
       try{
         const {model, objectMap} = await sceneManager.loadModel(
-          modelPath, 
-          nameRoot, 
+          options.modelPath, 
+          options.modelRootName, 
           namingConvention,
           (progress) =>  {
             setProgress(Math.round(progress))
@@ -140,12 +140,22 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
         setLoading(false);
       }
       catch (error) {
-        console.error('Error loading model:', error);
+        let errorMessage = 'An error occurred while loading the model.';
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        console.error('Error loading model:', errorMessage);
+        setError(errorMessage);
+        setLoading(false);
       }
     }
-
     importModel();
-  }, []);
+
+    return ()=>{
+      setLoading(true)
+      setError(null)
+    }
+  }, [options.modelPath, options.modelRootName, options.namingConvention]);
   
   useEffect(() => {
     console.log("Mounted");
@@ -156,6 +166,19 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
 
   if (data.series.length === 0) {
     return <PanelDataErrorView fieldConfig={fieldConfig} panelId={id} data={data} needsStringField />;
+  }
+
+  if (error) {
+    return (
+      <div className="error-screen"
+      style={{
+        width: `${width}px`, // Set to the panel's width
+        height: `${height}px`, // Set to the panel's height
+      }}>
+        <h1>Error!</h1>
+        <p>{error}</p>
+      </div>
+    );
   }
 return (
   <div
@@ -188,7 +211,6 @@ return (
               Number of series: {data.series.length}
             </div>
           )}
-          <div>Text option value: {options.name}</div>
           <div>Current speed is now: {options.speed} Deg/sec</div>
         </div>
       </>

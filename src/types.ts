@@ -1,7 +1,9 @@
 type SeriesSize = 'sm' | 'md' | 'lg';
 
 export interface SimpleOptions {
-  name: string;
+  modelPath: string;
+  modelRootName: string;
+  namingConvention: string;
   speed: number;
   showSeriesCount: boolean;
   seriesCountSize: SeriesSize;
