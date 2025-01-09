@@ -89,7 +89,7 @@ class SceneManager{
   // SETTING MODEL
   async loadModel(
     path: string,
-    nameRoot:string,
+    nameRoot: string,
     namingConvention: string[],
     onProgress?: (progress: number) => void
   ): Promise<{model: THREE.Object3D, objectMap: Map<string,Object3D>}> {
@@ -175,7 +175,7 @@ class SceneManager{
   }
 
   
-  private presettingModel(model:Object3D, rootName: string){
+  private presettingModel(model: Object3D, rootName: string){
     let regex = this.getHyphenNumberOrBlank(rootName);
     const groupingMap: Map<string, Map<string, Object3D>> = new Map();
     const childrenMap = this.getChildrenMap(model);
@@ -237,7 +237,7 @@ class SceneManager{
 
   private mappingThingIdAndObject(gltfScene: Object3D, wholeThingName: string): Map<string, Object3D>{
     const wholeThing = gltfScene.getObjectByName(wholeThingName);
-    if (!wholeThing || !gltfScene) throw new Error('Invalid scene or object name');
+    if (!wholeThing || !gltfScene) {throw new Error('Invalid scene or object name')};
 
     let extractedUuids = new Map();
     let idList = [wholeThingName];

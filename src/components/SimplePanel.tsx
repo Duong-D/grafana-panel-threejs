@@ -60,7 +60,6 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
   const [loading, setLoading] = useState(true);
   const [model, setModel] = useState<Object3D | null>(null);
   const [objectMap, setObjectMap] = useState<Map<string, Object3D> | null>(null);
-  const [componentMap, setComponentMap] = useState<Map<string, Object3D> | null>(null);
   const [progress, setProgress] = useState(0);
 
   const [error, setError] = useState<string | null>(null);
@@ -121,9 +120,12 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
   // })
 
   useEffect(()=>{
+    console.log(data)
+  },[data]);
+
+  useEffect(()=>{
     
     console.log("Importing 3D");
-    console.log(data)
     if (!options.modelPath || !options.modelRootName || !options.namingConvention ){
       setError("Configuration is invalid, check again modelPath, modelRootName, namingConvention");
       return
@@ -141,9 +143,7 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
         );
         setModel(model);
         setObjectMap(objectMap);
-        setComponentMap(componentMap)
         console.log(objectMap);
-        console.log(componentMap);
         setLoading(false);
       }
       catch (error) {
