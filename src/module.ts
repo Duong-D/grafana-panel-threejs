@@ -14,7 +14,7 @@ export const plugin = new PanelPlugin<SimpleOptions>(SimplePanel).setPanelOption
       path: 'modelRootName',
       name: "Root name of the model",
       description: 'Please enter the name',
-      defaultValue: 'ASM_',
+      defaultValue: 'ASM_TBM',
     })
     .addTextInput({
       path: 'namingConvention',

@@ -30,25 +30,3 @@
   text-shadow: 0 0 8px #f8d7da, 0 0 15px #f8d7da;
 }
 
-/* Adding a button (if needed) with a futuristic feel */
-.error-screen button {
-  padding: 12px 24px;
-  border: none;
-  border-radius: 8px;
-  background-color: transparent;
-  color: #00bcd4;
-  font-size: 1.2em;
-  font-family: 'Orbitron', sans-serif;
-  border: 2px solid #00bcd4;
-  cursor: pointer;
-  margin-top: 20px;
-  text-shadow: 0 0 5px #00bcd4, 0 0 15px #00bcd4;
-  transition: all 0.3s ease-in-out;
-}
-
-/* Button hover effect */
-.error-screen button:hover {
-  background-color: #00bcd4;
-  color: #0d0f13;
-  box-shadow: 0 0 20px #00bcd4, 0 0 30px #00bcd4;
-}

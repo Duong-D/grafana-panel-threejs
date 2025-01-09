@@ -22,30 +22,30 @@ class SceneManager{
   public controls: OrbitControls;
   public raycaster: THREE.Raycaster;
   private mouse: THREE.Vector2 = new THREE.Vector2();
-  private raycastCallbacks: RaycastCallback[] = []
+  private raycastCallbacks: RaycastCallback[] = [];
+
+  private wholeScene: Object3D | null = null;
 
   // Animation
   private animationFrameId: number | null = null;
   private animationCallbacks: Map<AnimationCallback, AnimationMetadata> = new Map();
 
+  // ModelCache
+  private urlMap: Map<string, Object3D> = new Map();
+  private modelMap: Map<Object3D, Map<string, Object3D>> = new Map();
+  private namingConvention: string[] = [];
+  private resetMaps(){
+    this.urlMap = new Map();
+    this.modelMap = new Map();
+  }
 
   // Interacting with mouse
   private highlightedObject: THREE.Object3D | null = null;
-  // private originalColor: THREE.Color | null = null;
   private originalMaterialMap: Map<THREE.Object3D, Array<THREE.Material | THREE.Material[]>> = new Map();
   private popupHandler: {
     onHover: (name: string, position: {x: number, y: number}) => void, 
     offHover: () => void
   }| null = null;
-
-
-  // ModelCache
-  private urlMap: Map<string, Object3D> = new Map();
-  private modelMap: Map<Object3D, Map<string, Object3D>> = new Map();
-  private namingConvention: string[] = [];
-  // private nameRoot: string = "";
-  // private modelRoot: Object3D | null = null;
-
   setPopupHandlers(onHover: (name: string, position: {x: number, y: number}) => void, offHover: () => void){
     this.popupHandler = {onHover, offHover};
   }
@@ -78,8 +78,6 @@ class SceneManager{
     this.raycaster = new THREE.Raycaster();
     this.attachMouseListeners();
 
-
-
   }
 
   static getInstance(){
@@ -88,7 +86,7 @@ class SceneManager{
     }
     return SceneManager.instance;
   }
-
+  // SETTING MODEL
   async loadModel(
     path: string,
     nameRoot:string,
@@ -100,56 +98,71 @@ class SceneManager{
       console.log("Got the url already")
       const model = this.urlMap.get(path);
       if (model){
-        const objectMap = this.modelMap.get(model)!;
-        return {model, objectMap}
+        if  (namingConvention === this.namingConvention){
+          const objectMap = this.modelMap.get(model)!;
+          return {model, objectMap}
+        } else {
+          this.resetMaps()
+          return this.loadModel(path, nameRoot, namingConvention);
+        } 
+      } else {
+        throw Error(`Cant find the model with the path: ${path}
+          Try reload the page again`)
       }
     }
     console.log("New Model")
+    if (this.wholeScene){
+      this.scene.remove(this.wholeScene)
+    }
     const loader = new GLTFLoader();
     return new Promise((resolve, rejects) => {
       loader.load(
         path,
         (gltf) => {
           const wholeScene = gltf.scene;
+          this.wholeScene = wholeScene;
           const model = wholeScene.getObjectByName(nameRoot);
           if (model){
-            this.scene.add(wholeScene);
             this.namingConvention = namingConvention;
-            // this.nameRoot = nameRoot;
-    
-            // Calculate the bounding box of the model AFTER adding it to the scene
-            const boundingBox = new THREE.Box3().setFromObject(wholeScene);
-
-            if (!boundingBox.isEmpty()) {
-              // Calculate the center of the bounding box
-              const boundingCenter = new THREE.Vector3();
-              boundingBox.getCenter(boundingCenter);
-              this.camera.position.set(
-                boundingCenter.x + 15,
-                boundingCenter.y + 25,
-                boundingCenter.z + 25
-              );
-    
-              this.controls.target.copy(boundingCenter); // Set the OrbitControls target to the bounding box center
-              this.controls.update(); // Update the controls to apply the new target
-        
-            } else {
-              console.warn("Bounding box is empty, skipping camera adjustment.");
-            }
-            // Generate the object map
             this.presettingModel(model, nameRoot);
-            // this.modelRoot = model;
-            const objectMap = this.mappingThingIdAndObject(model, nameRoot);
-            console.log(objectMap)
-            this.urlMap.set(path, model);
-            this.modelMap.set(model, objectMap);
-            resolve({ model, objectMap});
+            try {
+              const objectMap = this.mappingThingIdAndObject(model, nameRoot);
+              console.log(objectMap)
+              this.urlMap.set(path, model);
+              this.modelMap.set(model, objectMap);
+      
+              // Calculate the bounding box of the model AFTER adding it to the scene
+              const boundingBox = new THREE.Box3().setFromObject(wholeScene);
+
+              if (!boundingBox.isEmpty()) {
+                // Calculate the center of the bounding box
+                const boundingCenter = new THREE.Vector3();
+                boundingBox.getCenter(boundingCenter);
+                this.camera.position.set(
+                  boundingCenter.x + 15,
+                  boundingCenter.y + 25,
+                  boundingCenter.z + 25
+                );
+      
+                this.controls.target.copy(boundingCenter); // Set the OrbitControls target to the bounding box center
+                this.controls.update(); // Update the controls to apply the new target
+              } else {
+                console.warn("Bounding box is empty, skipping camera adjustment.");
+              }
+              
+              this.scene.add(wholeScene);
+              resolve({ model, objectMap});
+            } catch (error){
+              this.namingConvention = [];
+              throw error
+            }
           } else {
             throw new Error(`Model with name "${nameRoot}" not found in the scene.`);
           }
         },
         (xhr) => {
           const progress = (xhr.loaded / xhr.total) * 100;
+          console.log(progress);
           if (onProgress) {
             onProgress(progress);
           }
@@ -160,12 +173,126 @@ class SceneManager{
       );
     });
   }
-   // Method to reset or update scene
+
   
+  private presettingModel(model:Object3D, rootName: string){
+    let regex = this.getHyphenNumberOrBlank(rootName);
+    const groupingMap: Map<string, Map<string, Object3D>> = new Map();
+    const childrenMap = this.getChildrenMap(model);
+    childrenMap.forEach((object, objectKey)=>{
+      const modifiedKey = objectKey.replace(/[-_]\d+$/, regex);
+      if (!groupingMap.get(modifiedKey)){
+        const componentMap = new Map();
+        componentMap.set(objectKey, object)
+        groupingMap.set(modifiedKey, componentMap);
+      } else {
+        groupingMap.get(modifiedKey)!.set(objectKey, object)
+      }
+    });
+
+    groupingMap.forEach((componentMap, groupName)=>{
+      if (componentMap.size === 1){
+        // If the component is unique -> Name of the component = Name of the group with modified regex
+        const [name, object] = componentMap.entries().next().value;
+        const newGroupName = groupName;
+        object.name = newGroupName;
+        componentMap.delete(name);
+        componentMap.set(newGroupName, object);
+      } else {
+        // Sorting the component in the grouping 
+        // Convert Map entries to an array, sort them by key
+        const sortedRenamedMap = new Map(
+          Array.from(componentMap.entries()) // Convert Map to Array
+            .sort((a, b) => {
+              // Extract numeric suffix and compare
+              const matchA = a[0].match(/[-_](\d+)$/);
+              const matchB = b[0].match(/[-_](\d+)$/);
+              
+              // Handle cases where the match might be null
+              const suffixA = matchA ? parseInt(matchA[1], 10) : 0; // Default to 0 if no match
+              const suffixB = matchB ? parseInt(matchB[1], 10) : 0; // Default to 0 if no match
+              return suffixA - suffixB;
+            })
+            .map(([key, value], index) => {
+              // Rename keys to consecutive order
+              const newKey = `${groupName}_${index + 1}`;
+              value.name = newKey;
+              return [newKey, value];
+            })
+        );
+        // Updating the group with sorted Map
+        groupingMap.set(groupName, sortedRenamedMap)
+      }
+    })
+
+    // Recursive the procedure for all the Assembly(ASM) in the glb (gltf scene)
+    groupingMap.forEach((componentMap, groupName)=>{
+      if (groupName.includes(this.namingConvention[0])){
+        componentMap.forEach((object, objectKey) =>{
+          this.presettingModel(object, objectKey)
+        });
+      }
+    });
+  }
+
+  private mappingThingIdAndObject(gltfScene: Object3D, wholeThingName: string): Map<string, Object3D>{
+    const wholeThing = gltfScene.getObjectByName(wholeThingName);
+    if (!wholeThing || !gltfScene) throw new Error('Invalid scene or object name');
+
+    let extractedUuids = new Map();
+    let idList = [wholeThingName];
+
+    wholeThing.traverse((node) => {
+      if (this.followTheConvention(node.name)) {
+        let name = node.name.toLowerCase();
+        if (name.startsWith("body") || name.startsWith("color")){
+          throw Error(`Error with the naming convention at node: ${node.name} -> Child: ${node.parent?.name} `)
+        } else{
+          const index = idList.findIndex(id => id.includes(`${node.name}`));
+          if (index === -1 && node.parent) {
+            throw Error(`Check the relation: object[${node.name}]-parent[${node.parent.name}]`);
+          }
+          const id = idList[index];
+          extractedUuids.set(id, node);
+          idList.splice(index, 1);
+          for (const child of node.children || []) {
+            if (this.followTheConvention(child.name)) {
+              const newId = `${id}:${child.name}`;
+              idList.push(newId);
+            }
+          }
+        }
+      }
+    });
+    return extractedUuids;
+  }
+
+  private getHyphenNumberOrBlank(name: string) {
+    const match = name.match(/[-_]\d+/);
+    return match ? match[0] : '';
+  }
+
+  private getChildrenMap(model: Object3D){
+    let resultedMap = new Map();
+    model.children.forEach((child)=>{
+      if (this.followTheConvention(child.name)){
+          resultedMap.set(child.name, child)
+        }
+    });
+    return resultedMap;
+  }
+
+  // Follow naming convention
+  private followTheConvention(name: string): boolean {
+    return this.namingConvention.some(prefix => name.startsWith(prefix));
+  }
+   // Method to reset or update scene
   reset() {
     this.camera.position.set(1, 1, 1);
     this.controls.reset();
   }
+
+  // ANIMATION FUNCTIONS
 
   private startAnimating() {
     const clock = new THREE.Clock();
@@ -243,232 +370,122 @@ class SceneManager{
   };
 
 
-private presettingModel(model:Object3D, rootName: string){
-  let regex = this.getHyphenNumberOrBlank(rootName);
-  const groupingMap: Map<string, Map<string, Object3D>> = new Map();
-  const childrenMap = this.getChildrenMap(model);
-  childrenMap.forEach((object, objectKey)=>{
-    const modifiedKey = objectKey.replace(/[-_]\d+$/, regex);
-    if (!groupingMap.get(modifiedKey)){
-      const componentMap = new Map();
-      componentMap.set(objectKey, object)
-      groupingMap.set(modifiedKey, componentMap);
+  // INTERACTING FUNCTIONS
+  private attachMouseListeners(){
+    this.renderer.domElement.addEventListener("mousemove", this.onMouseMove.bind(this));
+    this.renderer.domElement.addEventListener("click", this.onMouseClick.bind(this));
+  }
+
+  private onMouseMove(event: MouseEvent){
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    // Raycast to find intersected objects
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+
+    if (intersects.length > 0) {
+      this.renderer.domElement.style.cursor = 'pointer';
+      let intersectedObject = intersects[0].object;
+      // Traverse up to find the grouping level (e.g., Group or Assembly)
+      while (intersectedObject.parent && !intersectedObject.parent.name.startsWith(this.namingConvention[0])) {
+        intersectedObject = intersectedObject.parent;
+      }
+      this.popupHandler?.onHover(intersectedObject.name, {x: event.clientX - rect.left, y: event.clientY - rect.top + 10})
+      // If the object is new, highlight it
+      if (this.highlightedObject !== intersectedObject) {
+        // Restore previous object's color (if any)
+        if (this.highlightedObject && this.originalMaterialMap.size !== 0) {
+          this.restoreOriginalColor(this.highlightedObject);
+        }
+
+        // Highlight the new group (or object)
+        this.highlightedObject = intersectedObject;
+        this.highlightObjectGroup(this.highlightedObject); // Change color to red (or any color you prefer)
+      }
     } else {
-      groupingMap.get(modifiedKey)!.set(objectKey, object)
-    }
-  });
-
-  groupingMap.forEach((componentMap, groupName)=>{
-    if (componentMap.size === 1){
-      // If the component is unique -> Name of the component = Name of the group with modified regex
-      const [name, object] = componentMap.entries().next().value;
-      const newGroupName = groupName;
-      object.name = newGroupName;
-      componentMap.delete(name);
-      componentMap.set(newGroupName, object);
-    } else {
-      // Sorting the component in the grouping 
-      // Convert Map entries to an array, sort them by key
-      const sortedRenamedMap = new Map(
-        Array.from(componentMap.entries()) // Convert Map to Array
-          .sort((a, b) => {
-            // Extract numeric suffix and compare
-            const matchA = a[0].match(/[-_](\d+)$/);
-            const matchB = b[0].match(/[-_](\d+)$/);
-            
-            // Handle cases where the match might be null
-            const suffixA = matchA ? parseInt(matchA[1], 10) : 0; // Default to 0 if no match
-            const suffixB = matchB ? parseInt(matchB[1], 10) : 0; // Default to 0 if no match
-            return suffixA - suffixB;
-          })
-          .map(([key, value], index) => {
-            // Rename keys to consecutive order
-            const newKey = `${groupName}_${index + 1}`;
-            value.name = newKey;
-            return [newKey, value];
-          })
-      );
-      // Updating the group with sorted Map
-      groupingMap.set(groupName, sortedRenamedMap)
-    }
-  })
-
-  // Recursive the procedure for all the Assembly(ASM) in the glb (gltf scene)
-  groupingMap.forEach((componentMap, groupName)=>{
-    if (groupName.includes("ASM")){
-      componentMap.forEach((object, objectKey) =>{
-        this.presettingModel(object, objectKey)
-      });
-    }
-  });
-}
-
-private attachMouseListeners(){
-  this.renderer.domElement.addEventListener("mousemove", this.onMouseMove.bind(this));
-  this.renderer.domElement.addEventListener("click", this.onMouseClick.bind(this));
-}
-
-private onMouseMove(event: MouseEvent){
-  const rect = this.renderer.domElement.getBoundingClientRect();
-  this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  // Raycast to find intersected objects
-  this.raycaster.setFromCamera(this.mouse, this.camera);
-  const intersects = this.raycaster.intersectObjects(this.scene.children, true);
-
-  if (intersects.length > 0) {
-    this.renderer.domElement.style.cursor = 'pointer';
-    let intersectedObject = intersects[0].object;
-    // Traverse up to find the grouping level (e.g., Group or Assembly)
-    while (intersectedObject.parent && !intersectedObject.parent.name.startsWith(this.namingConvention[0])) {
-      intersectedObject = intersectedObject.parent;
-    }
-    this.popupHandler?.onHover(intersectedObject.name, {x: event.clientX - rect.left, y: event.clientY - rect.top + 10})
-    // If the object is new, highlight it
-    if (this.highlightedObject !== intersectedObject) {
-      // Restore previous object's color (if any)
+      this.renderer.domElement.style.cursor = 'default';
+      this.popupHandler?.offHover();
+      // Restore color if no object is intersected
       if (this.highlightedObject && this.originalMaterialMap.size !== 0) {
         this.restoreOriginalColor(this.highlightedObject);
+        this.highlightedObject = null;
       }
-
-      // Highlight the new group (or object)
-      this.highlightedObject = intersectedObject;
-      this.highlightObjectGroup(this.highlightedObject); // Change color to red (or any color you prefer)
     }
-  } else {
-    this.renderer.domElement.style.cursor = 'default';
-    this.popupHandler?.offHover();
-    // Restore color if no object is intersected
-    if (this.highlightedObject && this.originalMaterialMap.size !== 0) {
-      this.restoreOriginalColor(this.highlightedObject);
-      this.highlightedObject = null;
+
+  }
+
+  private onMouseClick(){
+    // const objectsToCheck = [this.modelRoot, ...this.modelRoot.children];
+    const intersects =  this.raycaster.intersectObjects(this.scene.children, true);
+    
+    if (intersects.length > 0){
+      this.raycastCallbacks.forEach((callback)=> callback(intersects))
     }
   }
 
-}
-
-private onMouseClick(){
-  // const objectsToCheck = [this.modelRoot, ...this.modelRoot.children];
-  const intersects =  this.raycaster.intersectObjects(this.scene.children, true);
-  
-  if (intersects.length > 0){
-    this.raycastCallbacks.forEach((callback)=> callback(intersects))
+  addRaycastCallback(callback: RaycastCallback) {
+    this.raycastCallbacks.push(callback);
   }
-}
 
-addRaycastCallback(callback: RaycastCallback) {
-  this.raycastCallbacks.push(callback);
-}
-
-removeRaycastCallback(callback: RaycastCallback) {
-  this.raycastCallbacks = this.raycastCallbacks.filter((cb) => cb !== callback);
-}
-
-// Function to highlight an entire object group (or group hierarchy)
-// , highlightColor: THREE.ColorRepresentation
-private highlightObjectGroup(object: THREE.Object3D) {
-  const materialCache: Array<THREE.Material | THREE.Material[]> = [];
-
-  object.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      const mesh = child as THREE.Mesh;
-      const originalMaterial = mesh.material;
-      if (!this.originalMaterialMap.has(object)) {
-        // Store the original material in the map
-        materialCache.push(mesh.material);
-      }
-      const originalColor = (originalMaterial as THREE.MeshStandardMaterial).color;
-      const highlightColor = this.getContrastingColor(originalColor);
-
-      // Create a new highlighted material
-      const highlightMaterial = new THREE.MeshStandardMaterial({
-        color: highlightColor,
-        opacity: 0.8, // Adjust transparency (0 = fully transparent, 1 = fully opaque)
-        transparent: true,
-      });
-
-      mesh.material = highlightMaterial;
-    }
-  });
-
-  if (!this.originalMaterialMap.has(object)) {
-    this.originalMaterialMap.set(object, materialCache);
+  removeRaycastCallback(callback: RaycastCallback) {
+    this.raycastCallbacks = this.raycastCallbacks.filter((cb) => cb !== callback);
   }
-}
 
-private restoreOriginalColor(object: THREE.Object3D) {
-  const originalMaterials = this.originalMaterialMap.get(object);
-  if (originalMaterials) {
-    let index = 0;
+  // Function to highlight an entire object group (or group hierarchy)
+  // , highlightColor: THREE.ColorRepresentation
+  private highlightObjectGroup(object: THREE.Object3D) {
+    const materialCache: Array<THREE.Material | THREE.Material[]> = [];
+
     object.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         const mesh = child as THREE.Mesh;
-        mesh.material = originalMaterials[index++];
+        const originalMaterial = mesh.material;
+        if (!this.originalMaterialMap.has(object)) {
+          // Store the original material in the map
+          materialCache.push(mesh.material);
+        }
+        const originalColor = (originalMaterial as THREE.MeshStandardMaterial).color;
+        const highlightColor = this.getContrastingColor(originalColor);
+
+        // Create a new highlighted material
+        const highlightMaterial = new THREE.MeshStandardMaterial({
+          color: highlightColor,
+          opacity: 0.8, // Adjust transparency (0 = fully transparent, 1 = fully opaque)
+          transparent: true,
+        });
+
+        mesh.material = highlightMaterial;
       }
     });
 
-    // Remove the entry from the map after restoring
-    this.originalMaterialMap.delete(object);
-  } 
-}
+    if (!this.originalMaterialMap.has(object)) {
+      this.originalMaterialMap.set(object, materialCache);
+    }
+  }
 
-private getContrastingColor(originalColor: THREE.Color): THREE.Color {
-  const invertedColor = new THREE.Color(1 - originalColor.r, 1 - originalColor.g, 1 - originalColor.b);
-  const blendFactor = 0.9; // Blend with white for better contrast
-  invertedColor.lerp(new THREE.Color(0x00bcd4), blendFactor);
-  return invertedColor;
-}
-
-
-
-private mappingThingIdAndObject(gltfScene: Object3D, wholeThingName: string): Map<string, Object3D>{
-  const wholeThing = gltfScene.getObjectByName(wholeThingName);
-  if (!wholeThing || !gltfScene) throw new Error('Invalid scene or object name');
-
-  let extractedUuids = new Map();
-  let idList = [wholeThingName];
-
-  wholeThing.traverse((node) => {
-    if (this.followTheConvention(node.name)) {
-      const index = idList.findIndex(id => id.includes(`${node.name}`));
-      if (index === -1 && node.parent) {
-        console.error(`Check the relation: object[${node.name}]-parent[${node.parent.name}]`);
-        return; // Skip if the ID is not found
-      }
-      const id = idList[index];
-      extractedUuids.set(id, node);
-      idList.splice(index, 1);
-      for (const child of node.children || []) {
-        if (this.followTheConvention(child.name)) {
-          const newId = `${id}:${child.name}`;
-          idList.push(newId);
+  private restoreOriginalColor(object: THREE.Object3D) {
+    const originalMaterials = this.originalMaterialMap.get(object);
+    if (originalMaterials) {
+      let index = 0;
+      object.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const mesh = child as THREE.Mesh;
+          mesh.material = originalMaterials[index++];
         }
-      }
-    }
-  });
-  return extractedUuids;
-}
+      });
 
+      // Remove the entry from the map after restoring
+      this.originalMaterialMap.delete(object);
+    } 
+  }
 
-private getHyphenNumberOrBlank(name: string) {
-  const match = name.match(/[-_]\d+/);
-  return match ? match[0] : '';
-}
-
-private getChildrenMap(model: Object3D){
-  let resultedMap = new Map();
-  model.children.forEach((child)=>{
-    if (this.followTheConvention(child.name)){
-    resultedMap.set(child.name, child)
-    }
-  });
-  return resultedMap;
-}
-
-// Follow naming convention
-private followTheConvention(name: string): boolean {
-  return this.namingConvention.some(prefix => name.startsWith(prefix));
-}
+  private getContrastingColor(originalColor: THREE.Color): THREE.Color {
+    const invertedColor = new THREE.Color(1 - originalColor.r, 1 - originalColor.g, 1 - originalColor.b);
+    const blendFactor = 0.9; // Blend with white for better contrast
+    invertedColor.lerp(new THREE.Color(0x00bcd4), blendFactor);
+    return invertedColor;
+  }
 }
 
 export { SceneManager }; 

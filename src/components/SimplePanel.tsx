@@ -115,12 +115,19 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
   // // console.log("Timestamps:", times);
   // // console.log("Random Walk Values:", values);
   // console.log("Average Values:", average);
-
+  // useEffect(()=>{
+  //   const namingConvention = options.namingConvention.split(',').map(item => item.trim());
+  //   setNamingConvention(namingConvention);
+  // })
 
   useEffect(()=>{
     
     console.log("Importing 3D");
     console.log(data)
+    if (!options.modelPath || !options.modelRootName || !options.namingConvention ){
+      setError("Configuration is invalid, check again modelPath, modelRootName, namingConvention");
+      return
+    }
     const namingConvention = options.namingConvention.split(',').map(item => item.trim());
     const importModel = async ()=>{
       try{
