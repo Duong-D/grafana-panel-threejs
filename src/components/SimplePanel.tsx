@@ -4,8 +4,8 @@ import { SimpleOptions } from 'types';
 import { css, cx } from '@emotion/css';
 import { useStyles2, /*useTheme2*/ } from '@grafana/ui';
 import { PanelDataErrorView } from '@grafana/runtime';
-import { SpeedControl } from './SpeedControl';
-import { Visulize3D } from './Visulize3D';
+import MemoizedSpeedControl from './SpeedControl';
+import MemoizedVisualize3D from './Visualize3D';
 import {SceneManager} from './SceneManager';
 import { Object3D } from 'three';
 import { LoadingScreen } from './LoadingScreen';
@@ -201,11 +201,11 @@ return (
       <LoadingScreen progress={progress} />
     ) : (
       <>
-        <SpeedControl
+        <MemoizedSpeedControl
           onOptionsSpeedChange={handleOptionsSpeedChange}
           optionsSpeed={options.speed || 0}
         />
-        <Visulize3D
+        <MemoizedVisualize3D
           width={width}
           height={height}
           speed={options.speed || 0}

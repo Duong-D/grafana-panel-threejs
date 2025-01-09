@@ -7,7 +7,7 @@ import { SceneManager } from './SceneManager';
 const sceneManager = SceneManager.getInstance();
 
 
-interface Visulize3DProps {
+interface Visualize3DProps {
   width: number;
   height: number;
   speed: number;
@@ -30,12 +30,11 @@ const rotateWheelX = (delta: number, speed: number, target: Object3D) => {
 // };
 
 
-export const Visulize3D: React.FC<Visulize3DProps> = React.memo(({width, height, speed, model, objectMap}) => {
+const Visualize3D: React.FC<Visualize3DProps> = ({width, height, speed, model, objectMap}) => {
   const mountRef = useRef<HTMLDivElement>(null);
-
-
+  
   useEffect(()=>{
-    if (!mountRef.current) return;
+    if (!mountRef.current) {return};
     // Attach renderer to DOM
     mountRef.current.appendChild(sceneManager.renderer.domElement);
     // Catch the HTMLDivElement and SearchParam
@@ -49,10 +48,11 @@ export const Visulize3D: React.FC<Visulize3DProps> = React.memo(({width, height,
       if (mountNode.hasChildNodes()){mountNode.removeChild(sceneManager.renderer.domElement)};
     };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [domFlag])
 
   useEffect(() => {
-    if (!mountRef.current || width <= 0 || height <= 0) return;
+    if (!mountRef.current || width <= 0 || height <= 0) {return};
     sceneManager.camera.aspect = width / height || 1;
     sceneManager.camera.updateProjectionMatrix();
     sceneManager.renderer.setSize(width, height);
@@ -61,7 +61,7 @@ export const Visulize3D: React.FC<Visulize3DProps> = React.memo(({width, height,
     
 
   useEffect(()=>{
-    if (!model) return;
+    if (!model) {return};
     console.log(speed);
     const wheel = objectMap.get("ASM_TBM:ASM_CUTTERHEAD");
     const metadata = {
@@ -88,8 +88,15 @@ export const Visulize3D: React.FC<Visulize3DProps> = React.memo(({width, height,
       //   domFlag = !domFlag;
       // }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[speed, domFlag, model])
 
 
   return <div ref={mountRef} style={{ width: "100%", height: "100%" }}></div>
-});
+};
+
+const MemoizedVisualize3D = React.memo(Visualize3D);
+MemoizedVisualize3D.displayName = 'Visualize3D';
+
+export default MemoizedVisualize3D;
+

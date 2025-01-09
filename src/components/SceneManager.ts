@@ -93,12 +93,10 @@ class SceneManager{
     namingConvention: string[],
     onProgress?: (progress: number) => void
   ): Promise<{model: THREE.Object3D, objectMap: Map<string,Object3D>}> {
-
     if (this.urlMap.has(path)){
-      console.log("Got the url already")
       const model = this.urlMap.get(path);
       if (model){
-        if  (namingConvention === this.namingConvention){
+        if  (JSON.stringify(namingConvention) === JSON.stringify(this.namingConvention)){
           const objectMap = this.modelMap.get(model)!;
           return {model, objectMap}
         } else {
@@ -123,7 +121,9 @@ class SceneManager{
           this.wholeScene = wholeScene;
           const model = wholeScene.getObjectByName(nameRoot);
           if (model){
+            console.log("this.namingConvention at before assigned: ", this.namingConvention);
             this.namingConvention = namingConvention;
+            console.log("this.namingConvention at after assigned: ", this.namingConvention);
             this.presettingModel(model, nameRoot);
             try {
               const objectMap = this.mappingThingIdAndObject(model, nameRoot);
@@ -320,7 +320,7 @@ class SceneManager{
     callback: AnimationCallback,
     metadata: AnimationMetadata
   ) {
-    console.log(this.animationCallbacks)
+    console.log("Initial animationcallbacks list: ",this.animationCallbacks)
     // Check if the callback already exists
     const existingEntry = Array.from(this.animationCallbacks.entries()).find(
       ([existingCallback]) => existingCallback.name === callback.name
@@ -332,17 +332,16 @@ class SceneManager{
       // If metadata differs, update the metadata
       console.warn('Updating callback with new metadata.');
       this.animationCallbacks.set(existingCallback, metadata);
-      console.log(this.animationCallbacks)
-      return;
-    }
-    
-    // Add new callback and metadata
-    this.animationCallbacks.set(callback, metadata);
-    console.log(this.animationCallbacks)
-    // Start animation if this is the first callback
-    if (this.animationCallbacks.size === 1) {
-      this.startAnimating();
-    }
+      console.log("After Mounted animationcallbacks list: ",this.animationCallbacks)
+    } else {
+        // Add new callback and metadata
+        this.animationCallbacks.set(callback, metadata);
+        console.log(this.animationCallbacks)
+        // Start animation if this is the first callback
+        if (this.animationCallbacks.size === 1) {
+          this.startAnimating();
+        }
+      }
   }
   
   

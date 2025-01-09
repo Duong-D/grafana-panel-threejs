@@ -16,7 +16,7 @@ interface SpeedControlProps {
 
 }
 
-export const SpeedControl : React.FC<SpeedControlProps> = React.memo(({
+const SpeedControl: React.FC<SpeedControlProps> = ({
   onOptionsSpeedChange, 
   optionsSpeed, }) => {
     
@@ -65,5 +65,10 @@ export const SpeedControl : React.FC<SpeedControlProps> = React.memo(({
 
     </div>
   );
-},
-);
+};
+
+// Wrap it with React.memo and add displayName
+const MemoizedSpeedControl = React.memo(SpeedControl);
+MemoizedSpeedControl.displayName = 'SpeedControl';
+
+export default MemoizedSpeedControl;
