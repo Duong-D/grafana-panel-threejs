@@ -120,7 +120,7 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
   // })
 
   useEffect(()=>{
-    console.log(data)
+    console.log("This is Data: ",data)
   },[data]);
 
   useEffect(()=>{
@@ -172,7 +172,7 @@ export const SimplePanel: React.FC<Props> = ({options, data, width, height, fiel
   }, []);
 
   if (data.series.length === 0) {
-    return <PanelDataErrorView fieldConfig={fieldConfig} panelId={id} data={data} needsStringField />;
+    return <PanelDataErrorView panelId={id} data={data} needsStringField />;
   }
 
   if (error) {
