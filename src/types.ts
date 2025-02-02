@@ -1,11 +1,9 @@
-type SeriesSize = 'sm' | 'md' | 'lg';
+import { VizLegendOptions } from '@grafana/schema';
+
 
 export interface SimpleOptions {
   modelPath: string;
   modelRootName: string;
   namingConvention: string;
-  flag: boolean;
-  speed: number;
-  showSeriesCount: boolean;
-  seriesCountSize: SeriesSize;
+  legend: VizLegendOptions;
 }

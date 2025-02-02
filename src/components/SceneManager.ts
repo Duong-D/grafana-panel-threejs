@@ -1,14 +1,17 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Object3D } from 'three';
 
 interface AnimationMetadata {
+  name: string;
   propertyValue: number;
-  target: Object3D;
+  target: Object3D | PhysicsTarget;
 }
 
-type AnimationCallback = (delta: number, propertyValue: number, target: Object3D) => void;
+export type PhysicsTarget = { body: CANNON.Body; model: Object3D };
+type AnimationCallback = (delta: number, propertyValue: number, target: Object3D | PhysicsTarget) => void;
 
 type RaycastCallback = (intersects: THREE.Intersection[]) => void;
 
@@ -18,6 +21,13 @@ class SceneManager{
   // Scene Manager
   public renderer: THREE.WebGLRenderer;
   public scene: THREE.Scene;
+  public world: CANNON.World;
+  public cannonBodyArray: CANNON.Body[]= [];
+  public pistonModelArray: THREE.Object3D[] = [];
+  private hubModel: THREE.Object3D = new THREE.Object3D();
+  private hubBody: CANNON.Body = new CANNON.Body();
+  private correctionQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 2));
+
   public camera: THREE.PerspectiveCamera;
   public controls: OrbitControls;
   public raycaster: THREE.Raycaster;
@@ -28,10 +38,11 @@ class SceneManager{
 
   // Animation
   private animationFrameId: number | null = null;
-  private animationCallbacks: Map<AnimationCallback, AnimationMetadata> = new Map();
+  private animationCallbacks: Map<string,{callback: AnimationCallback, metadata: AnimationMetadata}> = new Map();
 
   // ModelCache
   private urlMap: Map<string, Object3D> = new Map();
+  private objectMap: Map<string, Object3D> = new Map();
   private modelMap: Map<Object3D, Map<string, Object3D>> = new Map();
   private namingConvention: string[] = [];
   private resetMaps(){
@@ -40,20 +51,15 @@ class SceneManager{
   }
 
   // Interacting with mouse
-  private highlightedObject: THREE.Object3D | null = null;
-  private originalMaterialMap: Map<THREE.Object3D, Array<THREE.Material | THREE.Material[]>> = new Map();
-  private popupHandler: {
-    onHover: (name: string, position: {x: number, y: number}) => void, 
-    offHover: () => void
-  }| null = null;
-  setPopupHandlers(onHover: (name: string, position: {x: number, y: number}) => void, offHover: () => void){
-    this.popupHandler = {onHover, offHover};
-  }
+  
 
+  // Constructor
   private constructor(){
     this.renderer = new THREE.WebGLRenderer();
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(10, window.innerWidth / window.innerHeight, 0.1, 10000);
+    this.world = new CANNON.World();
+    this.world.gravity.set(0,0,0);
 
     // Light setting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
@@ -80,101 +86,211 @@ class SceneManager{
 
   }
 
+  // 
   static getInstance(){
     if (!SceneManager.instance){
+      console.log("INITIALIZE SCENE MANAGER")
       SceneManager.instance = new SceneManager();
+    } else{
+      console.log("ALREADY GOT THE SCENEMANAGER")
     }
     return SceneManager.instance;
   }
-  // SETTING MODEL
+
+  // SETTING MODEL =====================START============================= 
   async loadModel(
     path: string,
     nameRoot: string,
     namingConvention: string[],
     onProgress?: (progress: number) => void
-  ): Promise<{model: THREE.Object3D, objectMap: Map<string,Object3D>}> {
-    if (this.urlMap.has(path)){
-      const model = this.urlMap.get(path);
-      if (model){
-        if  (JSON.stringify(namingConvention) === JSON.stringify(this.namingConvention)){
-          const objectMap = this.modelMap.get(model)!;
-          return {model, objectMap}
-        } else {
-          this.resetMaps()
-          return this.loadModel(path, nameRoot, namingConvention);
-        } 
-      } else {
-        throw Error(`Cant find the model with the path: ${path}
-          Try reload the page again`)
-      }
-    }
-    console.log("New Model")
-    if (this.wholeScene){
-      this.scene.remove(this.wholeScene)
-    }
-    const loader = new GLTFLoader();
-    return new Promise((resolve, rejects) => {
-      loader.load(
-        path,
-        (gltf) => {
-          const wholeScene = gltf.scene;
-          this.wholeScene = wholeScene;
-          const model = wholeScene.getObjectByName(nameRoot);
-          if (model){
-            console.log("this.namingConvention at before assigned: ", this.namingConvention);
-            this.namingConvention = namingConvention;
-            console.log("this.namingConvention at after assigned: ", this.namingConvention);
-            this.presettingModel(model, nameRoot);
-            try {
-              const objectMap = this.mappingThingIdAndObject(model, nameRoot);
-              console.log(objectMap)
-              this.urlMap.set(path, model);
-              this.modelMap.set(model, objectMap);
-      
-              // Calculate the bounding box of the model AFTER adding it to the scene
-              const boundingBox = new THREE.Box3().setFromObject(wholeScene);
-
-              if (!boundingBox.isEmpty()) {
-                // Calculate the center of the bounding box
-                const boundingCenter = new THREE.Vector3();
-                boundingBox.getCenter(boundingCenter);
-                this.camera.position.set(
-                  boundingCenter.x + 15,
-                  boundingCenter.y + 25,
-                  boundingCenter.z + 25
-                );
-      
-                this.controls.target.copy(boundingCenter); // Set the OrbitControls target to the bounding box center
-                this.controls.update(); // Update the controls to apply the new target
-              } else {
-                console.warn("Bounding box is empty, skipping camera adjustment.");
-              }
-              
-              this.scene.add(wholeScene);
-              resolve({ model, objectMap});
-            } catch (error){
-              this.namingConvention = [];
-              throw error
-            }
+    ): Promise<{model: THREE.Object3D, objectMap: Map<string,Object3D>}> {
+      if (this.urlMap.has(path)){
+        const model = this.urlMap.get(path);
+        if (model){
+          if  (JSON.stringify(namingConvention) === JSON.stringify(this.namingConvention)){
+            const objectMap = this.modelMap.get(model)!;
+            return {model, objectMap}
           } else {
-            throw new Error(`Model with name "${nameRoot}" not found in the scene.`);
-          }
-        },
-        (xhr) => {
-          const progress = (xhr.loaded / xhr.total) * 100;
-          console.log(progress);
-          if (onProgress) {
-            onProgress(progress);
-          }
-        },
-        (error) => {
-          rejects(error);
+            this.resetMaps()
+            return this.loadModel(path, nameRoot, namingConvention);
+          } 
+        } else {
+          throw Error(`Cant find the model with the path: ${path}
+            Try reload the page again`)
         }
-      );
+      }
+      console.log("New Model")
+      if (this.wholeScene){
+        this.scene.remove(this.wholeScene)
+      }
+      const loader = new GLTFLoader();
+      return new Promise((resolve, rejects) => {
+        loader.load(
+          path,
+          (gltf) => {
+            const wholeScene = gltf.scene;
+            this.wholeScene = wholeScene;
+            const model = wholeScene.getObjectByName(nameRoot);
+            if (model){
+              console.log("this.namingConvention at before assigned: ", this.namingConvention);
+              this.namingConvention = namingConvention;
+              console.log("this.namingConvention at after assigned: ", this.namingConvention);
+              this.presettingModel(model, nameRoot);
+              try {
+                const objectMap = this.mappingThingIdAndObject(model, nameRoot);
+                console.log(objectMap)
+                this.urlMap.set(path, model);
+                this.objectMap = objectMap;
+                this.modelMap.set(model, objectMap);
+        
+                // Calculate the bounding box of the model AFTER adding it to the scene
+                const boundingBox = new THREE.Box3().setFromObject(wholeScene);
+
+                if (!boundingBox.isEmpty()) {
+                  // Calculate the center of the bounding box
+                  const boundingCenter = new THREE.Vector3();
+                  boundingBox.getCenter(boundingCenter);
+                  this.camera.position.set(
+                    boundingCenter.x + 15,
+                    boundingCenter.y + 25,
+                    boundingCenter.z + 25
+                  );
+        
+                  this.controls.target.copy(boundingCenter); // Set the OrbitControls target to the bounding box center
+                  this.controls.update(); // Update the controls to apply the new target
+                } else {
+                  console.warn("Bounding box is empty, skipping camera adjustment.");
+                }
+                
+                this.scene.add(wholeScene);
+                const layer1 = this.getChildrenMap(model);
+                console.log(layer1)
+                this.hubModel = layer1.get("CMP_HUBCOVER");
+                console.log("THIS IS HUBCOVER", this.hubModel)
+                if (!this.hubModel){
+                  console.log("NO HUBCOVER")
+                }
+                this.objectGrouping(this.hubModel, layer1, "THRUST")
+                this.hubBody = this.addPhysicsObject(this.hubModel, this.world, 1, "cylinder").body;
+                for (let i=1; i<=12; i++){
+                  const pistonModel = model.getObjectByName(`CMP_PISTON_${i}`); 
+                  this.pistonModelArray.push(pistonModel!);
+                  const pistonData =  this.addPhysicsObject(pistonModel!, this.world, 0, "box");
+                  const pistonBody = pistonData.body;
+                  this.cannonBodyArray.push(pistonBody);
+                  const max = pistonData.max;
+                  const min = pistonData.min;
+
+                  const endPointWorld = new THREE.Vector3(
+                    max.x, // end at x
+                    (min.y + max.y) / 2,  // Center y
+                    (min.z + max.z) / 2  // Center z
+                  );
+                  const endPointLocalPiston = this.worldToLocal(endPointWorld, pistonBody);
+                  const endPointLocalHub = this.worldToLocal(endPointWorld, this.hubBody);
+                  const PistonHubPointConstraint = new CANNON.PointToPointConstraint(
+                    pistonBody, // Replace with your Cannon.js body for the piston
+                    endPointLocalPiston,
+                    this.hubBody, // Replace with your other Cannon.js body
+                    endPointLocalHub
+                  );
+                  this.world.addConstraint(PistonHubPointConstraint)
+                }
+                
+                resolve({ model, objectMap});
+              } catch (error){
+                this.namingConvention = [];
+                throw error
+              }
+            } else {
+              throw new Error(`Model with name "${nameRoot}" not found in the scene.`);
+            }
+          },
+          (xhr) => {
+            const progress = (xhr.loaded / xhr.total) * 100;
+            console.log(progress);
+            if (onProgress) {
+              onProgress(progress);
+            }
+          },
+          (error) => {
+            rejects(error);
+          }
+        );
+      }
+    );
+  }
+// Following functions for loading and setting
+  private addPhysicsObject(object: THREE.Object3D, world: CANNON.World, mass = 1, shapeType: "cylinder" | "box" = "box") {
+    // Compute the bounding box of the object
+    const boundingBox = new THREE.Box3().setFromObject(object, true);
+    const boundingSize = boundingBox.getSize(new THREE.Vector3());
+    const boundingCenter = object.position.clone(); // Clone to avoid modifying the original
+
+    // Create Cannon.js body
+    const body = new CANNON.Body({
+      mass: mass, // Dynamic if mass > 0, static if mass = 0
+      position: new CANNON.Vec3(boundingCenter.x, boundingCenter.y, boundingCenter.z),
     });
+
+    let shape;
+
+    if (shapeType === "cylinder") {
+      const height = boundingSize.x/2;
+      const radius = Math.max(boundingSize.y, boundingSize.z) / 2;
+      shape = new CANNON.Cylinder(radius, radius, height, 32);
+
+      // Convert Three.js rotation (Euler angles) to Cannon.js Quaternion
+      const objectQuaternion = new CANNON.Quaternion();
+      objectQuaternion.setFromEuler(
+        object.rotation.x, 
+        object.rotation.y, 
+        object.rotation.z + Math.PI / 2);
+      body.quaternion.copy(objectQuaternion);
+      // Cylinder: Determine the best orientation based on object dimensions
+    } else {
+      // Default to Box Shape
+      shape = new CANNON.Box(new CANNON.Vec3(boundingSize.x / 2, boundingSize.y / 2, boundingSize.z / 2));
+    }
+
+    
+    // Add shape to body
+    body.addShape(shape);
+    world.addBody(body);
+
+    console.log(`Added physics body for: ${object.name}, Shape: ${shapeType}`);
+    const min = boundingBox.min; // Minimum point in local space
+    const max = boundingBox.max; // Maximum point in local space
+    
+    return {body, min, max}; // Return the created body if needed
   }
 
+  private worldToLocal(worldPoint: THREE.Vector3 , body: CANNON.Body) {
+    // Convert worldPoint to a CANNON.Vec3 if needed
+    const worldVec = new CANNON.Vec3(worldPoint.x, worldPoint.y, worldPoint.z);
   
+    // Step 1: Translate the point to the body's local origin
+    const localVec = worldVec.vsub(body.position);
+  
+    // Step 2: Apply the inverse rotation of the body's quaternion
+    const localPoint = new CANNON.Vec3();
+    body.quaternion.inverse().vmult(localVec, localPoint);
+  
+    return localPoint;
+  }
+
+  private objectGrouping(object: THREE.Object3D, firstLayerMap: Map<string, THREE.Object3D>, filterString: string){
+    const newMap = firstLayerMap;
+    newMap.delete(object.name);
+    newMap.forEach((objectSub, id)=>{
+      if (!id.includes(filterString)){
+        object.attach(objectSub);
+      }
+    })
+  }
+
+
+  // Preparing the models in approriate names
   private presettingModel(model: Object3D, rootName: string){
     let regex = this.getHyphenNumberOrBlank(rootName);
     const groupingMap: Map<string, Map<string, Object3D>> = new Map();
@@ -189,7 +305,6 @@ class SceneManager{
         groupingMap.get(modifiedKey)!.set(objectKey, object)
       }
     });
-
     groupingMap.forEach((componentMap, groupName)=>{
       if (componentMap.size === 1){
         // If the component is unique -> Name of the component = Name of the group with modified regex
@@ -224,7 +339,6 @@ class SceneManager{
         groupingMap.set(groupName, sortedRenamedMap)
       }
     })
-
     // Recursive the procedure for all the Assembly(ASM) in the glb (gltf scene)
     groupingMap.forEach((componentMap, groupName)=>{
       if (groupName.includes(this.namingConvention[0])){
@@ -253,11 +367,17 @@ class SceneManager{
             throw Error(`Check the relation: object[${node.name}]-parent[${node.parent.name}]`);
           }
           const id = idList[index];
+
+          node.userData.data = {propertyValue: 0, unit: ""};
+          node.userData.thingId = id;
+          node.userData.parent = node.parent?.userData.thingId;
+          node.userData.children = []
           extractedUuids.set(id, node);
           idList.splice(index, 1);
           for (const child of node.children || []) {
             if (this.followTheConvention(child.name)) {
               const newId = `${id}:${child.name}`;
+              node.userData.children.push(newId)
               idList.push(newId);
             }
           }
@@ -286,6 +406,7 @@ class SceneManager{
   private followTheConvention(name: string): boolean {
     return this.namingConvention.some(prefix => name.startsWith(prefix));
   }
+  // SETTING MODEL =====================END=============================
    // Method to reset or update scene
   reset() {
     this.camera.position.set(1, 1, 1);
@@ -296,14 +417,27 @@ class SceneManager{
 
   private startAnimating() {
     const clock = new THREE.Clock();
+    const hubModelQuaternion = new THREE.Quaternion(); // Reuse this object
     const animate = () => {
       const delta = clock.getDelta();
+      this.world.step(1 / 60, delta, 3);
   
       // Execute each callback with its metadata
-      this.animationCallbacks.forEach((metadata, callback) => {
+      this.animationCallbacks.forEach(({callback,metadata}, name) => {
         callback(delta, metadata.propertyValue, metadata.target);
       });
-  
+      
+      this.hubModel.position.copy(this.hubBody.position);
+      // Update the existing quaternion instead of creating a new one
+      hubModelQuaternion.set(
+        this.hubBody.quaternion.x,
+        this.hubBody.quaternion.y,
+        this.hubBody.quaternion.z,
+        this.hubBody.quaternion.w
+    );
+    
+    this.hubModel.setRotationFromQuaternion(hubModelQuaternion);
+    this.hubModel.quaternion.multiply(this.correctionQuaternion);
       // Update scene controls and render
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
@@ -320,36 +454,18 @@ class SceneManager{
     callback: AnimationCallback,
     metadata: AnimationMetadata
   ) {
-    console.log("Initial animationcallbacks list: ",this.animationCallbacks)
-    // Check if the callback already exists
-    const existingEntry = Array.from(this.animationCallbacks.entries()).find(
-      ([existingCallback]) => existingCallback.name === callback.name
-    );
-  
-    if (existingEntry) {
-      const [existingCallback] = existingEntry;
-  
-      // If metadata differs, update the metadata
-      console.warn('Updating callback with new metadata.');
-      this.animationCallbacks.set(existingCallback, metadata);
-      console.log("After Mounted animationcallbacks list: ",this.animationCallbacks)
-    } else {
-        // Add new callback and metadata
-        this.animationCallbacks.set(callback, metadata);
-        console.log(this.animationCallbacks)
+        this.animationCallbacks.set(metadata.name, {callback, metadata});
         // Start animation if this is the first callback
         if (this.animationCallbacks.size === 1) {
           this.startAnimating();
         }
-      }
+      // }
   }
   
-  
-  removeAnimationCallback(callback: (delta: number, speed: number, target: Object3D) => void) {
-    if (this.animationCallbacks.has(callback)) {
-      this.animationCallbacks.delete(callback);
+  removeAnimationCallback(name: string) {
+    if (this.animationCallbacks.has(name)) {
+      this.animationCallbacks.delete(name);
     }
-  
     // If there are no remaining callbacks, stop animating
     if (this.animationCallbacks.size === 0 && this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
@@ -368,60 +484,210 @@ class SceneManager{
     this.animationCallbacks.clear();
   };
 
+  // INTERACTING FUNCTIONS =====================START============================= 
+  private highlightedObject: THREE.Object3D | null = null;
+  private lockedHighlightedObjectArray: THREE.Object3D[] = [];
+  private originalMaterialMap: Map<THREE.Object3D, Array<THREE.Material | THREE.Material[]>> = new Map();
+  private popupHandler: {
+    onHover: (name: string, position: {x: number, y: number}) => void, 
+    offHover: () => void
+  } | null = null;
 
-  // INTERACTING FUNCTIONS
-  private attachMouseListeners(){
-    this.renderer.domElement.addEventListener("mousemove", this.onMouseMove.bind(this));
-    this.renderer.domElement.addEventListener("click", this.onMouseClick.bind(this));
+  private infoHandler: {onClick: (object: Object3D) => void} | null = null;
+
+  // PUBLIC METHODS (Event Handlers)
+  setInfoHandlers(onClick: (object: Object3D) => void){
+    this.infoHandler = {onClick};
   }
 
-  private onMouseMove(event: MouseEvent){
-    const rect = this.renderer.domElement.getBoundingClientRect();
-    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    // Raycast to find intersected objects
-    this.raycaster.setFromCamera(this.mouse, this.camera);
+  setPopupHandlers(onHover: (name: string, position: {x: number, y: number}) => void, offHover: () => void){
+    this.popupHandler = {onHover, offHover};
+  }
+
+  private attachMouseListeners() {
+    this.renderer.domElement.addEventListener("mousemove", this.onMouseMove.bind(this));
+    this.renderer.domElement.addEventListener("click", this.onMouseClick.bind(this));
+    this.renderer.domElement.addEventListener("dblclick", this.onMouseDoubleClick.bind(this));
+  }
+
+  // HELPER METHODS (Logic for Highlighting and Interactions)
+  private restoreColorIfNeeded() {
+    if (this.highlightedObject && this.originalMaterialMap.size !== 0) {
+      // Check if the object should be restored (not locked and not in the locked list)
+      if (this.lockedHighlightedObjectArray.indexOf(this.highlightedObject) === -1) {
+        this.restoreOriginalColor(this.highlightedObject);
+      }
+    }
+  }
+
+  private getIntersectedObject(): THREE.Object3D | null {
     const intersects = this.raycaster.intersectObjects(this.scene.children, true);
 
     if (intersects.length > 0) {
       this.renderer.domElement.style.cursor = 'pointer';
       let intersectedObject = intersects[0].object;
-      // Traverse up to find the grouping level (e.g., Group or Assembly)
-      while (intersectedObject.parent && !intersectedObject.parent.name.startsWith(this.namingConvention[0])) {
+
+      while (intersectedObject.parent && !intersectedObject.userData.parent) {
         intersectedObject = intersectedObject.parent;
       }
-      this.popupHandler?.onHover(intersectedObject.name, {x: event.clientX - rect.left, y: event.clientY - rect.top + 10})
-      // If the object is new, highlight it
-      if (this.highlightedObject !== intersectedObject) {
-        // Restore previous object's color (if any)
-        if (this.highlightedObject && this.originalMaterialMap.size !== 0) {
-          this.restoreOriginalColor(this.highlightedObject);
-        }
+      return intersectedObject;
+    }
 
-        // Highlight the new group (or object)
-        this.highlightedObject = intersectedObject;
-        this.highlightObjectGroup(this.highlightedObject); // Change color to red (or any color you prefer)
+    return null;
+  }
+
+  private onMouseMove(event: MouseEvent) {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const intersectedObject = this.getIntersectedObject();
+
+    if (intersectedObject) {
+      this.popupHandler?.onHover(intersectedObject.name, { x: event.clientX - rect.left, y: event.clientY - rect.top + 10 });
+      
+      if (this.highlightedObject !== intersectedObject) {
+        this.restoreColorIfNeeded();
       }
+      this.highlightedObject = intersectedObject;
+      this.highlightObjectGroup(this.highlightedObject);
     } else {
       this.renderer.domElement.style.cursor = 'default';
       this.popupHandler?.offHover();
-      // Restore color if no object is intersected
-      if (this.highlightedObject && this.originalMaterialMap.size !== 0) {
-        this.restoreOriginalColor(this.highlightedObject);
-        this.highlightedObject = null;
+      this.restoreColorIfNeeded();
+      this.highlightedObject = null;
+    }
+  }
+
+  private highlightObjectGroup(object: THREE.Object3D) {
+    const materialCache: Array<THREE.Material | THREE.Material[]> = [];
+    if (object === this.hubModel){
+      const index = object.children.findIndex((child)=>{
+        return !this.followTheConvention(child.name)
+      });
+      this.highlightObjectGroup(object.children[index])
+      return
+    } 
+    else {
+      object.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const mesh = child as THREE.Mesh;
+          const originalMaterial = mesh.material;
+          if (!this.originalMaterialMap.has(object)) {
+            materialCache.push(mesh.material);
+          }
+          const originalColor = (originalMaterial as THREE.MeshStandardMaterial).color;
+          const highlightColor = this.getContrastingColor(originalColor);
+
+          const highlightMaterial = new THREE.MeshStandardMaterial({
+            color: highlightColor,
+            opacity: 0.8,
+            transparent: true,
+          });
+
+          mesh.material = highlightMaterial;
+        }
+      });
+      if (!this.originalMaterialMap.has(object)) {
+          this.originalMaterialMap.set(object, materialCache);
+      }
+      return
+    }
+  }
+
+  private restoreOriginalColor(object: THREE.Object3D) {
+    if (object === this.hubModel){
+      const index = object.children.findIndex((child)=>{
+        return !this.followTheConvention(child.name)
+      });
+      this.restoreOriginalColor(object.children[index])
+      return
+    } else {
+      const originalMaterials = this.originalMaterialMap.get(object);
+      if (originalMaterials) {
+        let index = 0;
+        object.traverse((child) => {
+          if (child.name.startsWith(this.namingConvention[0])||child.name.startsWith(this.namingConvention[1])){
+            return false
+          }
+          if (child instanceof THREE.Mesh) {
+            const mesh = child as THREE.Mesh;
+            mesh.material = originalMaterials[index++];
+          }
+          return
+        });
+        this.originalMaterialMap.delete(object);
+      }
+      return
+    }
+  }
+
+  // PRIVATE UTILITY FUNCTIONS (Helper logic)
+  private getContrastingColor(originalColor: THREE.Color): THREE.Color {
+    const invertedColor = new THREE.Color(1 - originalColor.r, 1 - originalColor.g, 1 - originalColor.b);
+    const blendFactor = 0.9;
+    invertedColor.lerp(new THREE.Color(0x00bcd4), blendFactor);
+    return invertedColor;
+  }
+
+  
+  // Helper function to restore all colors
+  private restoreAllColors() {
+    this.lockedHighlightedObjectArray.forEach(item => this.restoreOriginalColor(item));
+  }
+
+  private clearTheLockedHighlight(){
+    this.lockedHighlightedObjectArray.splice(0, this.lockedHighlightedObjectArray.length);
+  }
+
+  private highLightAssembly(object: Object3D) {
+    object.userData.children.forEach((childName: string) => {
+      const child = this.objectMap.get(childName)!;
+      const thisIsAssembly = child.name.startsWith(this.namingConvention[0]);
+      if (thisIsAssembly) {
+        this.highLightAssembly(child);
+      } else if (!this.lockedHighlightedObjectArray.includes(child)) {
+        this.highlightObjectGroup(child);
+        this.lockedHighlightedObjectArray.push(child);
+      }
+    });
+  }
+
+  // CLICK HANDLERS
+  private onMouseClick() {
+    const intersectedObject = this.highlightedObject;
+    if (intersectedObject) {
+      this.infoHandler?.onClick(intersectedObject);
+      if (this.lockedHighlightedObjectArray.length !== 0) { 
+        const indexIntersectedObject = this.lockedHighlightedObjectArray.indexOf(intersectedObject);
+        if (indexIntersectedObject === -1){
+          this.restoreAllColors();
+        } else {
+          this.lockedHighlightedObjectArray.splice(indexIntersectedObject,1);
+          this.restoreAllColors();
+        }
+        this.clearTheLockedHighlight()
+      }
+      this.lockedHighlightedObjectArray.push(intersectedObject);
+    } else {
+      if (this.lockedHighlightedObjectArray.length !== 0) {
+        this.restoreAllColors();
+        this.clearTheLockedHighlight()
       }
     }
-
   }
 
-  private onMouseClick(){
-    // const objectsToCheck = [this.modelRoot, ...this.modelRoot.children];
-    const intersects =  this.raycaster.intersectObjects(this.scene.children, true);
-    
-    if (intersects.length > 0){
-      this.raycastCallbacks.forEach((callback)=> callback(intersects))
+  private onMouseDoubleClick() {
+    const intersectedObject = this.getIntersectedObject();
+
+    if (intersectedObject) {
+      const objectToHandle = intersectedObject.userData.parent ? this.objectMap.get(intersectedObject.userData.parent)! : intersectedObject;
+      this.infoHandler?.onClick(objectToHandle);
+      this.highLightAssembly(objectToHandle);
     }
   }
+
 
   addRaycastCallback(callback: RaycastCallback) {
     this.raycastCallbacks.push(callback);
@@ -431,92 +697,6 @@ class SceneManager{
     this.raycastCallbacks = this.raycastCallbacks.filter((cb) => cb !== callback);
   }
 
-  // Function to highlight an entire object group (or group hierarchy)
-  // , highlightColor: THREE.ColorRepresentation
-  private highlightObjectGroup(object: THREE.Object3D) {
-    const materialCache: Array<THREE.Material | THREE.Material[]> = [];
-
-    object.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        const mesh = child as THREE.Mesh;
-        const originalMaterial = mesh.material;
-        if (!this.originalMaterialMap.has(object)) {
-          // Store the original material in the map
-          materialCache.push(mesh.material);
-        }
-        const originalColor = (originalMaterial as THREE.MeshStandardMaterial).color;
-        const highlightColor = this.getContrastingColor(originalColor);
-
-        // Create a new highlighted material
-        const highlightMaterial = new THREE.MeshStandardMaterial({
-          color: highlightColor,
-          opacity: 0.8, // Adjust transparency (0 = fully transparent, 1 = fully opaque)
-          transparent: true,
-        });
-
-        mesh.material = highlightMaterial;
-      }
-    });
-
-    if (!this.originalMaterialMap.has(object)) {
-      this.originalMaterialMap.set(object, materialCache);
-    }
-  }
-
-  private restoreOriginalColor(object: THREE.Object3D) {
-    const originalMaterials = this.originalMaterialMap.get(object);
-    if (originalMaterials) {
-      let index = 0;
-      object.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          const mesh = child as THREE.Mesh;
-          mesh.material = originalMaterials[index++];
-        }
-      });
-
-      // Remove the entry from the map after restoring
-      this.originalMaterialMap.delete(object);
-    } 
-  }
-
-  private getContrastingColor(originalColor: THREE.Color): THREE.Color {
-    const invertedColor = new THREE.Color(1 - originalColor.r, 1 - originalColor.g, 1 - originalColor.b);
-    const blendFactor = 0.9; // Blend with white for better contrast
-    invertedColor.lerp(new THREE.Color(0x00bcd4), blendFactor);
-    return invertedColor;
-  }
 }
 
 export { SceneManager }; 
-
-
-  // Mapping function for extracting UUIDs from the object
-// private mappingThingIdAndUuids(gltfScene: Object3D, wholeThingName: string, namingConvention: string[] = ["ASM", "CMP"]): [Map<string, Object3D>, Map<string, Object3D>] {
-//   const wholeThing = gltfScene.getObjectByName(wholeThingName);
-//   if (!wholeThing || !gltfScene) throw new Error('Invalid scene or object name');
-
-//   let extractedUuids = new Map();
-//   let extractedComponents = new Map();
-//   let idList = [wholeThingName];
-
-//   wholeThing.traverse((node) => {
-//     if (this.followTheConvention(node.name, namingConvention)) {
-//       const index = idList.findIndex(id => id.includes(`${node.name}`));
-//       if (index === -1 && node.parent) {
-//         console.error(`Check the relation: object[${node.name}]-parent[${node.parent.name}]`);
-//         return; // Skip if the ID is not found
-//       }
-//       const id = idList[index];
-//       extractedUuids.set(id, node);
-//       extractedComponents.set(node.name, node);
-//       idList.splice(index, 1);
-//       for (const child of node.children || []) {
-//         if (this.followTheConvention(child.name, namingConvention)) {
-//           const newId = `${id}:${child.name}`;
-//           idList.push(newId);
-//         }
-//       }
-//     }
-//   });
-//   return [extractedUuids,extractedComponents];
-// }

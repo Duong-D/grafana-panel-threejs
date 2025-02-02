@@ -23,34 +23,148 @@
   "panels": [
     {
       "datasource": {
-        "type": "grafana",
-        "uid": "grafana"
+        "default": true,
+        "type": "grafana-testdata-datasource",
+        "uid": "trlxrdZVk"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "#30e6fd",
+            "mode": "shades"
+          },
+          "custom": {
+            "fillOpacity": 16,
+            "gradientMode": "none"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
       },
       "gridPos": {
-        "h": 12,
-        "w": 18,
+        "h": 22,
+        "w": 16,
         "x": 0,
         "y": 0
       },
       "id": 1,
       "options": {
-        "name": "Default value of text input option",
+        "demo1": {},
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "modelPath": "https://duong-d.github.io/tbm-model-hosting/TBM_Model12.glb",
+        "modelRootName": "ASM_TBM",
+        "namingConvention": "ASM, CMP",
         "seriesCountSize": "sm",
-        "showSeriesCount": false,
-        "text": "Default value of text input option"
+        "showSeriesCount": false
       },
       "targets": [
         {
+          "alias": "value",
           "datasource": {
-            "type": "datasource",
-            "uid": "grafana"
+            "type": "grafana-testdata-datasource",
+            "uid": "trlxrdZVk"
           },
-          "queryType": "randomWalk",
-          "refId": "A"
+          "max": 4,
+          "min": 0.5,
+          "refId": "ASM_CUTTERHEAD_RPM",
+          "scenarioId": "random_walk",
+          "seriesCount": 1
+        },
+        {
+          "alias": "value",
+          "datasource": {
+            "type": "grafana-testdata-datasource",
+            "uid": "trlxrdZVk"
+          },
+          "max": 2,
+          "min": 1,
+          "refId": "CMP_HUBCOVER_non",
+          "scenarioId": "random_walk"
+        },
+        {
+          "alias": "value",
+          "datasource": {
+            "type": "grafana-testdata-datasource",
+            "uid": "trlxrdZVk"
+          },
+          "refId": "CMP_PISTON_1_cm",
+          "scenarioId": "server_error_500",
+          "stringInput": "1,2,3,4,5,6"
+        },
+        {
+          "alias": "value",
+          "datasource": {
+            "type": "grafana-testdata-datasource",
+            "uid": "trlxrdZVk"
+          },
+          "hide": false,
+          "refId": "CMP_PISTON_2_cm",
+          "scenarioId": "server_error_500",
+          "stringInput": "1,2,3,4,5,6"
+        },
+        {
+          "alias": "value",
+          "datasource": {
+            "type": "grafana-testdata-datasource",
+            "uid": "trlxrdZVk"
+          },
+          "hide": false,
+          "refId": "CMP_PISTON_12_cm",
+          "scenarioId": "server_error_500",
+          "stringInput": "1,2,3,4,5,6"
+        },
+        {
+          "alias": "value",
+          "datasource": {
+            "type": "grafana-testdata-datasource",
+            "uid": "trlxrdZVk"
+          },
+          "hide": false,
+          "refId": "CMP_PISTON_7_cm",
+          "scenarioId": "server_error_500",
+          "stringInput": "1,2,3,4,5,6"
+        },
+        {
+          "alias": "value",
+          "datasource": {
+            "type": "grafana-testdata-datasource",
+            "uid": "trlxrdZVk"
+          },
+          "hide": false,
+          "refId": "CMP_PISTON_8_cm",
+          "scenarioId": "server_error_500",
+          "stringInput": "1,2,3,4,5,6"
+        },
+        {
+          "alias": "value",
+          "datasource": {
+            "type": "grafana-testdata-datasource",
+            "uid": "trlxrdZVk"
+          },
+          "hide": false,
+          "refId": "CMP_PISTON_3_cm",
+          "scenarioId": "server_error_500",
+          "stringInput": "1,2,3,4,5,6"
         }
       ],
       "title": "Panel Title",
-      "type": "dinh-threejsdemo-panel"
+      "type": "dinh-threejs-panel"
     }
   ],
   "refresh": "",
@@ -60,13 +174,13 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-5s",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Provisioned threejsdemo dashboard",
   "uid": "a538aeff-5a8a-42a5-901c-938d896fdd6f",
-  "version": 2,
+  "version": 11,
   "weekStart": ""
 }

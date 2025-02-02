@@ -1,5 +1,5 @@
 import React from 'react';
-import './Popup.css'; // Import the CSS file
+import './css/Popup.css'; // Import the CSS file
 
 interface PopupProps {
   name: string; // Name of the object

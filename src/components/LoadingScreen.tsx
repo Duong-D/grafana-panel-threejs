@@ -1,5 +1,5 @@
 import React from 'react';
-import './LoadingScreen.css'; // CSS file for the futuristic style
+import './css/LoadingScreen.css'; // CSS file for the futuristic style
 
 interface LoadingScreenProps {
   progress: number; // Progress value (0-100)

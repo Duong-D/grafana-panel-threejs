@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&display=swap');
+/* body {
+    font-family: 'Russo One', sans-serif;
+} */
+/* Title for the object ID (Centered above the panel) */
+
+
+.graph-title {
+  width: 400px;
+  position: absolute;
+  top: -10px; /* Position above the panel */
+  left: 50%;
+  transform: translateX(-50%); /* Center horizontally */
+  font-family: 'Russo One', sans-serif;
+  font-size: 15px;
+  font-weight: bold;
+  color: #00bcd4;
+  text-align: left;
+}
+
+.graph-title div {
+  display: flex;
+  justify-content: left; /* Centers text inline */
+  align-items: last baseline;
+  gap: 5px; /* Space between label and value */
+  white-space: nowrap; /* Prevents wrapping */
+}
+
+.graph-sub {
+  font-size: 12px;
+  color: #d3d3d3; /* Dimmed white */
+}
+
+.graph-unavailable-container {
+  width: 500px;
+  /* height: 300px; */
+  display: none;  /* Make the container adjust to the width of its content */
+  padding: 5px 10px;     /* Padding inside the box to create a gap between text and border */
+  background: rgba(0, 188, 212, 0.3); /* Semi-transparent background */
+  border-radius: 5px;     /* Rounded corners */
+  word-wrap: break-word;
+  position: absolute;  
+  color: #00bcd4;         /* Text color */
+  font-family: 'Russo One', sans-serif;
+  font-size: 20px;        /* Font size */
+  text-align: center;
+}
+
+/* Add border and shadow using ::before and ::after */
+.graph-unavailable-container::before,
+.graph-unavailable-container::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  border-radius: 9px;  /* Match rounded corners */
+  border: 3px solid #00bcd4; /* Border color */
+  pointer-events: none; /* Ensure pseudo-elements don't interfere with mouse events */
+}
+
+/* Shadow effect to add the glow around the box */
+.graph-unavailable-container::after {
+  box-shadow: 0 0 15px rgba(0, 188, 212, 0.7); /* Glowing shadow effect */
+}
+
+.graph-unavailable-container.visible {
+  display: block;
+}

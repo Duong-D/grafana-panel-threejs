@@ -1,0 +1,115 @@
+*{
+  box-sizing: border-box;
+  margin:0;
+  padding:0;
+}
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&display=swap');
+/* body {
+    font-family: 'Russo One', sans-serif;
+} */
+/* Title for the object ID (Centered above the panel) */
+.info-title {
+  position: absolute;
+  top: -30px;  /* Position the title above the panel */
+  left: 50%;
+  transform: translateX(-50%);  /* Center horizontally */
+  font-family: 'Russo One', sans-serif;
+  font-size: 20px;  /* Larger font size for the title */
+  font-weight: bold;
+  color: #00bcd4;
+}
+
+.info-container {
+  display: none;  /* Make the container adjust to the width of its content */
+  padding: 5px 10px;     /* Padding inside the box to create a gap between text and border */
+  background: rgba(0, 188, 212, 0.3); /* Semi-transparent background */
+  border-radius: 5px;     /* Rounded corners */
+  word-wrap: break-word;
+  position: absolute;  
+  left: 30px;   /* Positioning context for pseudo-elements */
+  top: 50px;
+  color: #00bcd4;         /* Text color */
+  font-family: 'Russo One', sans-serif;
+  font-size: 8px;        /* Font size */
+}
+
+/* Title for the object ID */
+.info-name {
+  font-size: 15px;  /* Larger font size for the ID */
+  font-weight: bold;
+  margin-bottom: 5px; /* Spacing between the title and other info */
+  justify-content: space-between;
+}
+
+.close-button {
+  background-color: transparent;
+  border: none;  /* No border */
+  color: #00bcd4;
+  font-size: 8px;
+  font-weight: bold;
+  width: 12px;  /* Width for square */
+  height: 12px;  /* Height for square */
+  border-radius: 3px;  /* Rounded corners */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  position: absolute;
+  right: 0px;  /* Positioning context for pseudo-elements */
+  top: 0px;
+  transition: all 0.3s ease;  /* Smooth transition for hover effects */
+}
+
+.close-button:hover {
+  background-color: #00bcd4; /* Background change on hover */
+  color: white; /* Text color changes when hovered */
+  box-shadow: 0 0 3px rgba(0, 188, 212, 0.7); /* Glowing effect on hover */
+}
+
+.info-parent,
+.info-id {
+  font-size: 10px;
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* Specific styling for 'From:' part */
+.id-label {
+  font-size: 9px;
+  font-weight: normal;
+  display: inline-block;
+  padding-left: 3px;  /* Adds some space for the bullet point */
+}
+
+.info-property-value {
+  text-align: center; /* Centers the text (dataValue) */
+  display: block;
+  font-family: 'Russo One', sans-serif;
+  font-size: 20px;  /* Larger font size for the title */
+  font-weight: bold;
+  color: #00bcd4;
+}
+
+
+/* Add border and shadow using ::before and ::after */
+.info-container::before,
+.info-container::after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  border-radius: 9px;  /* Match rounded corners */
+  border: 3px solid #00bcd4; /* Border color */
+  pointer-events: none; /* Ensure pseudo-elements don't interfere with mouse events */
+}
+
+/* Shadow effect to add the glow around the box */
+.info-container::after {
+  box-shadow: 0 0 15px rgba(0, 188, 212, 0.7); /* Glowing shadow effect */
+}
+
+.info-container.visible {
+  display: block;
+}
