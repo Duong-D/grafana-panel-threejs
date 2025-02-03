@@ -61,9 +61,7 @@ const Visualize3D: React.FC<Visualize3DProps> = ({width, height, series, model, 
   
   useEffect(() => {
     if (!model) {return};
-  
-    console.log("Processing new data...");
-  
+
     // Extract cutterhead speed
     const cutterheadSpeedSeri = series.find((seri) => {
       const { queryName, unit } = refIdExtraction(seri);
@@ -130,11 +128,8 @@ const Visualize3D: React.FC<Visualize3DProps> = ({width, height, series, model, 
   useEffect(() => {
     if (!model) {return};
   
-    console.log("Adding animation callbacks...");
-  
     const cutterhead = objectMap.get("ASM_TBM:ASM_CUTTERHEAD");
     if (!cutterhead) {
-      console.warn("Wheel model not found in objectMap");
       return;
     }
   
@@ -176,7 +171,6 @@ const Visualize3D: React.FC<Visualize3DProps> = ({width, height, series, model, 
     }
   
     return () => {
-      console.log("Disposing previous animations...");
       sceneManager.disposeAnimation();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

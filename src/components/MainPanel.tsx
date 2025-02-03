@@ -14,7 +14,6 @@ import MemoizedInfoPanel from './InforPanel';
 import './css/ErrorScreen.css'; 
 import { GraphPanel } from './GraphPanel';
 
-
 interface Props extends PanelProps<SimpleOptions> {}
 export const getStyles = () => {
   return {
@@ -89,7 +88,6 @@ export const MainPanel: React.FC<Props> = ({options, data, width, height, id, ti
   const { series } = data; 
 
   useEffect(()=>{
-    console.log("Importing 3D");
     if (!options.modelPath || !options.modelRootName || !options.namingConvention ){
       setError("Configuration is invalid, check again modelPath, modelRootName, namingConvention");
       return
@@ -107,7 +105,6 @@ export const MainPanel: React.FC<Props> = ({options, data, width, height, id, ti
         );
         setModel(model);
         setObjectMap(objectMap);
-        console.log(objectMap);
         setLoading(false);
       }
       catch (error) {

@@ -89,10 +89,8 @@ class SceneManager{
   // 
   static getInstance(){
     if (!SceneManager.instance){
-      console.log("INITIALIZE SCENE MANAGER")
       SceneManager.instance = new SceneManager();
     } else{
-      console.log("ALREADY GOT THE SCENEMANAGER")
     }
     return SceneManager.instance;
   }
@@ -119,7 +117,7 @@ class SceneManager{
             Try reload the page again`)
         }
       }
-      console.log("New Model")
+
       if (this.wholeScene){
         this.scene.remove(this.wholeScene)
       }
@@ -132,13 +130,10 @@ class SceneManager{
             this.wholeScene = wholeScene;
             const model = wholeScene.getObjectByName(nameRoot);
             if (model){
-              console.log("this.namingConvention at before assigned: ", this.namingConvention);
               this.namingConvention = namingConvention;
-              console.log("this.namingConvention at after assigned: ", this.namingConvention);
               this.presettingModel(model, nameRoot);
               try {
                 const objectMap = this.mappingThingIdAndObject(model, nameRoot);
-                console.log(objectMap)
                 this.urlMap.set(path, model);
                 this.objectMap = objectMap;
                 this.modelMap.set(model, objectMap);
@@ -164,13 +159,9 @@ class SceneManager{
                 
                 this.scene.add(wholeScene);
                 const layer1 = this.getChildrenMap(model);
-                console.log(layer1)
                 this.hubModel = layer1.get("CMP_HUBCOVER");
-                console.log("THIS IS HUBCOVER", this.hubModel)
-                if (!this.hubModel){
-                  console.log("NO HUBCOVER")
-                }
                 this.objectGrouping(this.hubModel, layer1, "THRUST")
+
                 this.hubBody = this.addPhysicsObject(this.hubModel, this.world, 1, "cylinder").body;
                 for (let i=1; i<=12; i++){
                   const pistonModel = model.getObjectByName(`CMP_PISTON_${i}`); 
@@ -208,7 +199,6 @@ class SceneManager{
           },
           (xhr) => {
             const progress = (xhr.loaded / xhr.total) * 100;
-            console.log(progress);
             if (onProgress) {
               onProgress(progress);
             }
@@ -253,12 +243,10 @@ class SceneManager{
       shape = new CANNON.Box(new CANNON.Vec3(boundingSize.x / 2, boundingSize.y / 2, boundingSize.z / 2));
     }
 
-    
     // Add shape to body
     body.addShape(shape);
     world.addBody(body);
 
-    console.log(`Added physics body for: ${object.name}, Shape: ${shapeType}`);
     const min = boundingBox.min; // Minimum point in local space
     const max = boundingBox.max; // Maximum point in local space
     

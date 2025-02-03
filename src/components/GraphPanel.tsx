@@ -50,7 +50,6 @@ export const GraphPanel: React.FC<GraphPanelProps> = ({object, visible, timeRang
     setfilteredSeries(filteredSeries);
 
     const unit = lastUnderscore !== -1 ? filteredSeries[0].refId?.substring(lastUnderscore + 1) : "";
-    console.log(unit)
     setUnit(unit) 
   },[object, data, visible])
   
